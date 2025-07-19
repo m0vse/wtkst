@@ -8,13 +8,17 @@ using De.Mud.Telnet;
 using Net.Graphite.Telnet;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
+using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Windows.Forms;
 using wtKST.Properties;
+using static wtKST.MainDlg;
 
 namespace wtKST
 {
@@ -46,7 +50,6 @@ namespace wtKST
             }
         }
 
-
         public void SetStateStandby()
         {
             State = KST_STATE.Standby;
@@ -67,7 +70,7 @@ namespace wtKST
 
         private DataTable MSG = new DataTable("MSG");    // holds all the messages exchanged as sent by the KST server
         private DataTable USER = new DataTable("USER");  // holds all the users that are currently logged into the KST server
-
+        private DataTable CLUSTER = new DataTable("CLUSTER");
         private TelnetWrapper tw;
 
         private DateTime latestMessageTimestamp = DateTime.MinValue;
@@ -79,12 +82,25 @@ namespace wtKST
 
         private bool SendMyName = false;
         private bool SendMyLocator = false;
+
         private bool CheckStartUpAway = true;
 #if DEBUG_INJECT_KST
         private System.Timers.Timer ti_debug;
 #endif
         public KSTcom()
         {
+
+            //DL|Unix time|dx utc|spotter|qrg|dx|info|spotter locator|dx locator| 
+            CLUSTER = new DataTable("CLUSTER");
+            CLUSTER.Columns.Add("DX");
+            CLUSTER.Columns.Add("TIME", typeof(DateTime));
+            CLUSTER.Columns.Add("UTC");
+            CLUSTER.Columns.Add("LOC");
+            CLUSTER.Columns.Add("QRG");
+            CLUSTER.Columns.Add("SPOTTER");
+            CLUSTER.Columns.Add("INFO");
+            CLUSTER.Columns.Add("SPOTTERLOC");
+
             MSG = new DataTable("MSG");
             MSG.Columns.Add("TIME", typeof(DateTime));
             MSG.Columns.Add("CALL");
@@ -309,6 +325,8 @@ namespace wtKST
                             SendMyLocator = false;
                         }
 
+                        SetDXQRG();
+
                         ti_Linkcheck.Stop();   // restart the linkcheck timer
                         ti_Linkcheck.Start();
                     }
@@ -323,6 +341,26 @@ namespace wtKST
                     else if (s.Substring(0, 1).Equals("U"))
                     {
                         Receive_USR(s);
+                    }
+                    else if (s.Substring(0, 2).Equals("DL"))
+                    {
+                        Console.WriteLine("Cluster:" + s);
+                        string[] cluster = s.Split('|'); ;
+
+                        DataRow Row = CLUSTER.NewRow();
+                        DateTime dt = new System.DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(long.Parse(cluster[1]));
+                        Row["TIME"] = dt;
+                        Row["UTC"] = cluster[2].Trim();
+                        Row["SPOTTER"] = cluster[3].Trim();
+                        Row["QRG"] = cluster[4].Trim();
+                        Row["DX"] = cluster[5].Trim();
+                        Row["INFO"] = cluster[6].Trim();
+                        Row["SPOTTERLOC"] = cluster[7].Trim();
+                        Row["LOC"] = cluster[8].Trim();
+
+                        if (process_cluster_spot != null)
+                            process_cluster_spot(this, new ClusterSpotEventArgs(Row));
+
                     }
                     break;
             }
@@ -432,6 +470,7 @@ namespace wtKST
                         }
                         initialMessagesReceived = true;
                         break;
+
                 }
             }
             catch (Exception e)
@@ -628,6 +667,16 @@ namespace wtKST
             }
         }
 
+        public event EventHandler<ClusterSpotEventArgs> process_cluster_spot;
+        public class ClusterSpotEventArgs: EventArgs
+        {
+            public ClusterSpotEventArgs(DataRow spot)
+            {
+                this.spot = spot;
+            }
+            public DataRow spot { get; private set; }
+        }
+
 
         public event EventHandler<UserUpdateEventArgs> process_user_update;
         public enum USER_OP { USER_NEW, USER_MODIFY, USER_MODIFY_STATE, USER_DELETE, USER_DONE };
@@ -763,6 +812,43 @@ namespace wtKST
 #endif
                 if (update_user_state != null)
                     update_user_state(this, new userStateEventArgs(USER_STATE.Away));
+            }
+        }
+
+        public void SetDXQRG()
+        {
+            
+            if (IsConnected())
+            {
+                // Find the bands.
+                string cmd = "SDXQ|" + Settings.Default.KST_Chat.Substring(0, 1)+ "|";
+                List<bandinfo> b = new List<bandinfo>();
+                if (Settings.Default.Band_50)
+                    cmd += "50000.0|52000.0|";
+                if (Settings.Default.Band_70)
+                    cmd += "70000.0|70500.0|";
+                if (Settings.Default.Band_144)
+                    cmd += "144000.0|146000.0|";
+                if (Settings.Default.Band_432)
+                    cmd += "433000.0|440000.0|";
+                if (Settings.Default.Band_1296)
+                    cmd += "1240000.0|1300000.0|";
+                if (Settings.Default.Band_2320)
+                    cmd += "2320000.0|2450000.0|";
+                if (Settings.Default.Band_3400)
+                    cmd += "3400000.0|3475000.0|";
+                if (Settings.Default.Band_5760)
+                    cmd += "5650000.0|5858000.0|";
+                if (Settings.Default.Band_10368)
+                    cmd += "10000000.0|10500000.0|";
+                if (Settings.Default.Band_24GHz)
+                    cmd += "24000000.0|24250000.0|";
+                if (Settings.Default.Band_47GHz)
+                    cmd += "47000000.0|47200000.0|";
+                if (Settings.Default.Band_76GHz)
+                    cmd += "75500000.0|81500000.0|";
+                Console.WriteLine("Sending: " + cmd);
+                tw.Send(cmd + "\r");
             }
         }
 

@@ -5,11 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{7B815C51-6896-4989-BD1B-8D2D7A116AA3}</ProjectGuid>
+    <ProjectGuid>{7B815C51-6896-4989-BD1B-8D2D7A116AA4}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WinTest</RootNamespace>
-    <AssemblyName>WinTest</AssemblyName>
+    <RootNamespace>N1MM</RootNamespace>
+    <AssemblyName>N1MM</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -43,15 +43,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="N1MMStatus.cs" />
+    <Compile Include="N1MMLog.cs" />
+    <Compile Include="N1MMLogBase.cs" />
     <Compile Include="N1MMLogSync.cs" />
-    <Compile Include="QARTestLogSync.cs" />
-    <Compile Include="WinTestLog.cs" />
-    <Compile Include="WinTestLogBase.cs" />
-    <Compile Include="wtLogSync.cs" />
-    <Compile Include="wtSked.cs" />
-    <Compile Include="wtStatus.cs" />
-    <Compile Include="wtListener.cs" />
-    <Compile Include="WinTest.cs" />
+    <Compile Include="N1MMSked.cs" />
+    <Compile Include="N1MMListener.cs" />
+    <Compile Include="N1MM.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

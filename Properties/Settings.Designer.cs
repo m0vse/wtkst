@@ -12,7 +12,7 @@ namespace wtKST.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.10.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.13.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -236,6 +236,30 @@ namespace wtKST.Properties {
             }
             set {
                 this["ShowBeacons"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool EnableSpots {
+            get {
+                return ((bool)(this["EnableSpots"]));
+            }
+            set {
+                this["EnableSpots"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("30")]
+        public string SpotTimeout {
+            get {
+                return ((string)(this["SpotTimeout"]));
+            }
+            set {
+                this["SpotTimeout"] = value;
             }
         }
         
@@ -529,7 +553,7 @@ namespace wtKST.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("1200")]
+        [global::System.Configuration.DefaultSettingValueAttribute("30")]
         public string KST_MaxDist {
             get {
                 return ((string)(this["KST_MaxDist"]));
@@ -896,6 +920,18 @@ namespace wtKST.Properties {
             }
             set {
                 this["QARTest_Sync_active"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool N1MM_Sync_active {
+            get {
+                return ((bool)(this["N1MM_Sync_active"]));
+            }
+            set {
+                this["N1MM_Sync_active"] = value;
             }
         }
     }

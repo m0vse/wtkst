@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -13,6 +14,7 @@ using System.Threading;
 using System.Windows.Forms;
 using WinTest;
 using wtKST.Properties;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = System.Windows.Forms.Application;
 
 namespace wtKST
@@ -29,6 +31,8 @@ namespace wtKST
         private QRVdb qrv = new QRVdb(BANDS);
 
         public DataTable CALL = new DataTable("CALL");
+
+        public DataTable CLUSTER = new DataTable("CLUSTER");
 
         private WinTest.WinTestLogBase wtQSO = null;
 
@@ -55,8 +59,6 @@ namespace wtKST
         private ToolStripMenuItem tsi_File_Exit;
 
         private Label lbl_KST_MyMsg;
-
-        private Label lbl_KST_Calls;
 
         private System.Windows.Forms.ListView lv_Msg;
 
@@ -103,7 +105,6 @@ namespace wtKST
         private AboutBox aboutBox1 = new AboutBox();
 
         private System.Windows.Forms.Timer ti_Main;
-        private DataGridView lv_Calls;
 
         private const int COLUMN_WIDTH = 20;
 
@@ -137,6 +138,8 @@ namespace wtKST
 
         private System.Windows.Forms.Timer ti_UpdateFilter;
 
+        private System.Timers.Timer ti_SpotTimeout;
+
         private BackgroundWorker bw_GetPlanes;
 
         private bool WinTestLocatorWarning = false;
@@ -155,6 +158,8 @@ namespace wtKST
 
         private WinTest.wtStatus wts;
         private WTSkedDlg wtskdlg;
+
+
         private uint last_sked_qrg;
         private uint kst_sked_qrg;
         private string kst_sked_mode;
@@ -186,6 +191,10 @@ namespace wtKST
         private ToolStripStatusLabel tsl_LED_AS_Status;
         private ToolStripStatusLabel tsl_LED_Log_Status;
         private ToolStripStatusLabel tsl_LED_KST_Status;
+        private Label lbl_KST_Calls;
+        private SplitContainer splitContainer4;
+        private DataGridView lv_Calls;
+        private DataGridView lv_Cluster;
         private string AS_watchlist = "";
 
         public MainDlg()
@@ -210,9 +219,41 @@ namespace wtKST
 
             KST.process_new_message += KST_Process_new_message;
             KST.process_user_update += KST_Process_user_update;
+            KST.process_cluster_spot += KST_Process_cluster_spot;
+
             KST.update_user_state += onUserStateChanged;
             KST.dispText += KST_dispText;
             KST.KSTStateChanged += KST_StateChanged;
+
+            //DL|Unix time|dx utc|spotter|qrg|dx|info|spotter locator|dx locator| 
+            CLUSTER.Columns.Add("DX");
+            CLUSTER.Columns.Add("TIME", typeof(DateTime));
+            CLUSTER.Columns.Add("UTC");
+            CLUSTER.Columns.Add("LOC");
+            CLUSTER.Columns.Add("QRG");
+            CLUSTER.Columns.Add("SPOTTER");
+            CLUSTER.Columns.Add("INFO");
+            CLUSTER.Columns.Add("SPOTTERLOC");
+            DataColumn[] CLUSTERkeys = new DataColumn[]
+            {
+                CLUSTER.Columns["DX"]
+            };
+            CLUSTER.PrimaryKey = CLUSTERkeys;
+            lv_Cluster.DataSource = CLUSTER;
+            lv_Cluster.Columns["TIME"].Visible = false;
+            lv_Cluster.Columns["DX"].HeaderCell.Value = "DX";
+            lv_Cluster.Columns["DX"].Width = 50;
+            lv_Cluster.Columns["UTC"].HeaderCell.Value = "UTC";
+            lv_Cluster.Columns["UTC"].Width = 40;
+            lv_Cluster.Columns["LOC"].HeaderCell.Value = "Locator";
+            lv_Cluster.Columns["LOC"].Width = 50;
+            lv_Cluster.Columns["QRG"].HeaderCell.Value = "QRG";
+            lv_Cluster.Columns["QRG"].Width = 50;
+            lv_Cluster.Columns["SPOTTER"].HeaderCell.Value = "By";
+            lv_Cluster.Columns["SPOTTER"].Width = 50;
+            lv_Cluster.Columns["INFO"].Width = 100;
+            lv_Cluster.Columns["INFO"].HeaderCell.Value = "Info";
+            lv_Cluster.Columns["SPOTTERLOC"].Visible = false;
 
             CALL.Columns.Add("CALL");
             CALL.Columns.Add("NAME");
@@ -419,6 +460,7 @@ namespace wtKST
             }
         }
 
+ 
         private DateTime KST_Update_User_Filter_last_called = DateTime.Now;
 
         private void OnIdle(object sender, EventArgs args)
@@ -696,7 +738,41 @@ namespace wtKST
                 MainDlg.Log.WriteMessage(MethodBase.GetCurrentMethod().Name + Row.ToString() + e.Message + "\n" + e.StackTrace);
             }
         }
+        private void KST_Process_cluster_spot(object sender, KSTcom.ClusterSpotEventArgs arg)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new EventHandler<KSTcom.ClusterSpotEventArgs>(KST_Process_cluster_spot), new object[] { sender, arg });
+                return;
+            }
 
+            DataRow SPOT = arg.spot;
+            DataRow spot = CLUSTER.NewRow();
+            spot["DX"] = SPOT["DX"];
+            spot["TIME"] = SPOT["TIME"];
+            spot["UTC"] = SPOT["UTC"];
+            spot["LOC"] = SPOT["LOC"];
+            spot["QRG"] = SPOT["QRG"];
+            spot["SPOTTER"] = SPOT["SPOTTER"];
+            spot["INFO"] = SPOT["INFO"];
+            spot["SPOTTERLOC"] = SPOT["SPOTTERLOC"];
+
+            string call = spot["DX"].ToString();
+            DataRow row = CLUSTER.Rows.Find(call);
+            lock (CLUSTER)
+            {
+                if (row != null)
+                {
+                    row = spot;
+                }
+                else
+                {
+                    CLUSTER.Rows.Add(spot);
+                }
+                CLUSTER.AcceptChanges();
+            }
+
+        }
         private void KST_Process_user_update(object sender, KSTcom.UserUpdateEventArgs arg)
         {
             if (this.InvokeRequired)
@@ -833,6 +909,31 @@ namespace wtKST
             KST_Update_Usr_Filter(false);
             ti_UpdateFilter.Stop();
         }
+
+        private void ti_SpotTimeout_Tick(object sender, EventArgs e)
+        {
+            // Iterate through all cluster spots and "expire" any that are older than SpotTimeout            
+            int timeout = Convert.ToInt32(Settings.Default.SpotTimeout);
+            if (timeout < 1)
+                return;
+            Console.WriteLine("Checking for spots older than " + timeout + " minutes (" + DateTime.UtcNow.ToString()+")");
+            // Iterate backwards through the spots, so it "should" be possible to delete
+            for (int i = CLUSTER.Rows.Count - 1; i >= 0; i--)
+            {
+                DataRow dr = CLUSTER.Rows[i];
+                DateTime tm = (DateTime)dr["TIME"];
+                Console.WriteLine("Time of spot: " + tm.ToString());
+                tm = tm.AddMinutes(timeout);
+
+                if (DateTime.UtcNow > tm)
+                {
+                    dr.Delete();
+                    CLUSTER.AcceptChanges();
+                }
+            }
+        }
+
+
 
         private void KST_Update_Usr_Filter(bool check = false)
         {
@@ -1191,6 +1292,32 @@ namespace wtKST
                     wts = new WinTest.wtStatus();
                 wtQSO.LogStateChanged += Log_StateChanged;
             }
+            else if (Settings.Default.N1MM_Sync_active)
+            {
+                if (wtQSO != null)
+                {
+                    if (wtQSO.GetType() == typeof(WinTest.N1MMLogSync))
+                    {
+                        Console.WriteLine("wtQSO already N1MMLogSync");
+                        return;
+                    }
+                    else
+                    {
+
+                        Console.WriteLine("wtQSO active " + wtQSO.GetType().ToString());
+                        ((IDisposable)wtQSO).Dispose();
+                        wtQSO = null;
+                    }
+                }
+                wtQSO = new N1MMLogSync(MainDlg.Log.WriteMessage);
+                if (wts != null)
+                {
+                    Console.WriteLine("wts active - turn off");
+                    wts = null;
+                }
+                wtQSO.LogStateChanged += Log_StateChanged;
+            }
+
             else if (Settings.Default.QARTest_Sync_active)
             {
                 if (wtQSO != null)
@@ -1351,6 +1478,8 @@ namespace wtKST
                                 else if (wtQSO.GetType() == typeof(WtLogSync))
                                     wtQSO.Get_QSOs(Settings.Default.WinTest_StationName);
                                 else if (wtQSO.GetType() == typeof(QARTestLogSync))
+                                    wtQSO.Get_QSOs("");
+                                else if (wtQSO.GetType() == typeof(N1MMLogSync))
                                     wtQSO.Get_QSOs("");
                                 if (!String.IsNullOrEmpty(wtQSO.MyLoc) && WCCheck.WCCheck.IsLoc(wtQSO.MyLoc) > 0 && !wtQSO.MyLoc.Equals(Settings.Default.KST_Loc))
                                 {
@@ -2070,10 +2199,12 @@ namespace wtKST
                 {
                     var column = dgv.Columns[e.ColumnIndex];
                     var row = dgv.Rows[e.RowIndex];
-
+                    if (row.Cells["CALL"].Value == null)
+                    {
+                        return;
+                    }
                     string username = row.Cells["CALL"].Value.ToString().Replace("(", "").Replace(")", "");
                     string call = WCCheck.WCCheck.SanitizeCall(username);
-
                     if (column.Name == "CALL" || column.Name == "NAME" || column.Name == "LOC" || column.Name == "CONTACTED")
                     {
                         if (username.Length > 0 && KST.State == KSTcom.KST_STATE.Connected)
@@ -2083,6 +2214,7 @@ namespace wtKST
                             cb_Command.SelectionLength = 0;
                         }
                     }
+
                     string loc = row.Cells["LOC"].Value.ToString();
 
                     if (column.Name == "AS" && Settings.Default.AS_Active)
@@ -2111,7 +2243,7 @@ namespace wtKST
                                     case QRVdb.QRV_STATE.unknown:
                                         row.Cells[e.ColumnIndex].Value = QRVdb.QRV_STATE.qrv;
                                         qrv.set_qrv_state(call, loc, band, QRVdb.QRV_STATE.qrv);
-                                        foreach(var CallsRow in call_rows)
+                                        foreach (var CallsRow in call_rows)
                                             CallsRow[band] = QRVdb.QRV_STATE.qrv;
                                         break;
                                     case QRVdb.QRV_STATE.qrv:
@@ -2143,6 +2275,11 @@ namespace wtKST
                 {
                     var column = dgv.Columns[e.ColumnIndex];
                     var row = dgv.Rows[e.RowIndex];
+
+                    if (row.Cells["CALL"].Value == null)
+                    {
+                        return;
+                    }
 
                     if (column.Name == "CALL")
                     {
@@ -2823,9 +2960,9 @@ namespace wtKST
             this.ss_Main = new System.Windows.Forms.StatusStrip();
             this.tsl_Info = new System.Windows.Forms.ToolStripStatusLabel();
             this.tsl_Error = new System.Windows.Forms.ToolStripStatusLabel();
+            this.tsl_LED_KST_Status = new System.Windows.Forms.ToolStripStatusLabel();
             this.tsl_LED_AS_Status = new System.Windows.Forms.ToolStripStatusLabel();
             this.tsl_LED_Log_Status = new System.Windows.Forms.ToolStripStatusLabel();
-            this.tsl_LED_KST_Status = new System.Windows.Forms.ToolStripStatusLabel();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.splitContainer3 = new System.Windows.Forms.SplitContainer();
@@ -2845,7 +2982,9 @@ namespace wtKST
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.lbl_KST_MyMsg = new System.Windows.Forms.Label();
+            this.splitContainer4 = new System.Windows.Forms.SplitContainer();
             this.lv_Calls = new System.Windows.Forms.DataGridView();
+            this.lv_Cluster = new System.Windows.Forms.DataGridView();
             this.lbl_KST_Calls = new System.Windows.Forms.Label();
             this.mn_Main = new System.Windows.Forms.MenuStrip();
             this.tsm_File = new System.Windows.Forms.ToolStripMenuItem();
@@ -2884,6 +3023,7 @@ namespace wtKST
             this.ti_Reconnect = new System.Windows.Forms.Timer(this.components);
             this.tt_Info = new System.Windows.Forms.ToolTip(this.components);
             this.ti_UpdateFilter = new System.Windows.Forms.Timer(this.components);
+            this.ti_SpotTimeout = new System.Timers.Timer();
             this.bw_GetPlanes = new System.ComponentModel.BackgroundWorker();
             this.cmn_userlist = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.cmn_userlist_wtsked = new System.Windows.Forms.ToolStripMenuItem();
@@ -2906,7 +3046,12 @@ namespace wtKST
             this.splitContainer3.Panel1.SuspendLayout();
             this.splitContainer3.Panel2.SuspendLayout();
             this.splitContainer3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer4)).BeginInit();
+            this.splitContainer4.Panel1.SuspendLayout();
+            this.splitContainer4.Panel2.SuspendLayout();
+            this.splitContainer4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.lv_Calls)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.lv_Cluster)).BeginInit();
             this.mn_Main.SuspendLayout();
             this.cmn_Notify.SuspendLayout();
             this.cmn_userlist.SuspendLayout();
@@ -2915,13 +3060,14 @@ namespace wtKST
             // 
             // ss_Main
             // 
+            this.ss_Main.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.ss_Main.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsl_Info,
             this.tsl_Error,
             this.tsl_LED_KST_Status,
             this.tsl_LED_AS_Status,
             this.tsl_LED_Log_Status});
-            this.ss_Main.Location = new System.Drawing.Point(0, 708);
+            this.ss_Main.Location = new System.Drawing.Point(0, 699);
             this.ss_Main.Name = "ss_Main";
             this.ss_Main.Size = new System.Drawing.Size(1202, 22);
             this.ss_Main.TabIndex = 9;
@@ -2930,7 +3076,7 @@ namespace wtKST
             // tsl_Info
             // 
             this.tsl_Info.Name = "tsl_Info";
-            this.tsl_Info.Size = new System.Drawing.Size(28, 17);
+            this.tsl_Info.Size = new System.Drawing.Size(50, 30);
             this.tsl_Info.Text = "Info";
             // 
             // tsl_Error
@@ -2938,43 +3084,42 @@ namespace wtKST
             this.tsl_Error.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tsl_Error.ForeColor = System.Drawing.Color.Red;
             this.tsl_Error.Name = "tsl_Error";
-            this.tsl_Error.Text = "";
-            this.tsl_Error.Size = new System.Drawing.Size(1108, 17);
+            this.tsl_Error.Size = new System.Drawing.Size(1077, 17);
             this.tsl_Error.Spring = true;
             this.tsl_Error.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // tsl_LED_KST_Status
             // 
             this.tsl_LED_KST_Status.AutoSize = false;
+            this.tsl_LED_KST_Status.BackColor = System.Drawing.Color.Red;
             this.tsl_LED_KST_Status.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.None;
             this.tsl_LED_KST_Status.Margin = new System.Windows.Forms.Padding(7, 5, 1, 5);
             this.tsl_LED_KST_Status.Name = "tsl_LED_KST_Status";
             this.tsl_LED_KST_Status.Size = new System.Drawing.Size(12, 12);
             this.tsl_LED_KST_Status.Text = "ON4KST Chat Status LED";
             this.tsl_LED_KST_Status.ToolTipText = "ON4KST Chat Status LED";
-            this.tsl_LED_KST_Status.BackColor = Color.Red;
             // 
             // tsl_LED_AS_Status
             // 
             this.tsl_LED_AS_Status.AutoSize = false;
+            this.tsl_LED_AS_Status.BackColor = System.Drawing.Color.Red;
             this.tsl_LED_AS_Status.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.None;
             this.tsl_LED_AS_Status.Margin = new System.Windows.Forms.Padding(7, 5, 1, 5);
             this.tsl_LED_AS_Status.Name = "tsl_LED_AS_Status";
             this.tsl_LED_AS_Status.Size = new System.Drawing.Size(12, 12);
             this.tsl_LED_AS_Status.Text = "Airscout Status LED";
             this.tsl_LED_AS_Status.ToolTipText = "Airscout Status LED";
-            this.tsl_LED_AS_Status.BackColor = Color.Red;
             // 
             // tsl_LED_Log_Status
             // 
             this.tsl_LED_Log_Status.AutoSize = false;
+            this.tsl_LED_Log_Status.BackColor = System.Drawing.Color.Red;
             this.tsl_LED_Log_Status.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.None;
             this.tsl_LED_Log_Status.Margin = new System.Windows.Forms.Padding(7, 5, 1, 5);
-            this.tsl_LED_Log_Status.Name = "tsl_LED_AS_Status";
+            this.tsl_LED_Log_Status.Name = "tsl_LED_Log_Status";
             this.tsl_LED_Log_Status.Size = new System.Drawing.Size(12, 12);
             this.tsl_LED_Log_Status.Text = "Log sync Status LED";
             this.tsl_LED_Log_Status.ToolTipText = "Log sync Status LED";
-            this.tsl_LED_Log_Status.BackColor = Color.Red;
             // 
             // splitContainer1
             // 
@@ -2989,10 +3134,10 @@ namespace wtKST
             // 
             // splitContainer1.Panel2
             // 
-            this.splitContainer1.Panel2.Controls.Add(this.lv_Calls);
+            this.splitContainer1.Panel2.Controls.Add(this.splitContainer4);
             this.splitContainer1.Panel2.Controls.Add(this.lbl_KST_Calls);
-            this.splitContainer1.Size = new System.Drawing.Size(1202, 684);
-            this.splitContainer1.SplitterDistance = 843;
+            this.splitContainer1.Size = new System.Drawing.Size(1202, 657);
+            this.splitContainer1.SplitterDistance = 952;
             this.splitContainer1.TabIndex = 10;
             // 
             // splitContainer2
@@ -3013,8 +3158,8 @@ namespace wtKST
             this.splitContainer2.Panel2.Controls.Add(this.lv_MyMsg);
             this.splitContainer2.Panel2.Controls.Add(this.lbl_KST_MyMsg);
             this.splitContainer2.Panel2MinSize = 75;
-            this.splitContainer2.Size = new System.Drawing.Size(843, 684);
-            this.splitContainer2.SplitterDistance = 346;
+            this.splitContainer2.Size = new System.Drawing.Size(952, 657);
+            this.splitContainer2.SplitterDistance = 301;
             this.splitContainer2.TabIndex = 0;
             // 
             // splitContainer3
@@ -3039,7 +3184,7 @@ namespace wtKST
             // 
             this.splitContainer3.Panel2.Controls.Add(this.lv_Msg);
             this.splitContainer3.Panel2.Controls.Add(this.lbl_KST_Msg);
-            this.splitContainer3.Size = new System.Drawing.Size(843, 346);
+            this.splitContainer3.Size = new System.Drawing.Size(952, 301);
             this.splitContainer3.SplitterDistance = 80;
             this.splitContainer3.TabIndex = 0;
             // 
@@ -3076,7 +3221,7 @@ namespace wtKST
             this.lbl_KST_Status.Location = new System.Drawing.Point(0, 0);
             this.lbl_KST_Status.Name = "lbl_KST_Status";
             this.lbl_KST_Status.Padding = new System.Windows.Forms.Padding(4);
-            this.lbl_KST_Status.Size = new System.Drawing.Size(841, 26);
+            this.lbl_KST_Status.Size = new System.Drawing.Size(950, 26);
             this.lbl_KST_Status.TabIndex = 15;
             this.lbl_KST_Status.Text = "Status";
             this.lbl_KST_Status.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -3103,10 +3248,10 @@ namespace wtKST
             this.lv_Msg.FullRowSelect = true;
             this.lv_Msg.GridLines = true;
             this.lv_Msg.HideSelection = false;
-            this.lv_Msg.Location = new System.Drawing.Point(0, 26);
+            this.lv_Msg.Location = new System.Drawing.Point(0, 65);
             this.lv_Msg.MultiSelect = false;
             this.lv_Msg.Name = "lv_Msg";
-            this.lv_Msg.Size = new System.Drawing.Size(841, 234);
+            this.lv_Msg.Size = new System.Drawing.Size(950, 150);
             this.lv_Msg.TabIndex = 12;
             this.lv_Msg.UseCompatibleStateImageBehavior = false;
             this.lv_Msg.View = System.Windows.Forms.View.Details;
@@ -3143,7 +3288,7 @@ namespace wtKST
             this.lbl_KST_Msg.Location = new System.Drawing.Point(0, 0);
             this.lbl_KST_Msg.Name = "lbl_KST_Msg";
             this.lbl_KST_Msg.Padding = new System.Windows.Forms.Padding(4);
-            this.lbl_KST_Msg.Size = new System.Drawing.Size(841, 26);
+            this.lbl_KST_Msg.Size = new System.Drawing.Size(950, 65);
             this.lbl_KST_Msg.TabIndex = 11;
             this.lbl_KST_Msg.Text = "Messages";
             this.lbl_KST_Msg.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -3160,10 +3305,10 @@ namespace wtKST
             this.lv_MyMsg.FullRowSelect = true;
             this.lv_MyMsg.GridLines = true;
             this.lv_MyMsg.HideSelection = false;
-            this.lv_MyMsg.Location = new System.Drawing.Point(0, 26);
+            this.lv_MyMsg.Location = new System.Drawing.Point(0, 65);
             this.lv_MyMsg.MultiSelect = false;
             this.lv_MyMsg.Name = "lv_MyMsg";
-            this.lv_MyMsg.Size = new System.Drawing.Size(841, 306);
+            this.lv_MyMsg.Size = new System.Drawing.Size(950, 285);
             this.lv_MyMsg.TabIndex = 13;
             this.lv_MyMsg.UseCompatibleStateImageBehavior = false;
             this.lv_MyMsg.View = System.Windows.Forms.View.Details;
@@ -3200,13 +3345,31 @@ namespace wtKST
             this.lbl_KST_MyMsg.Location = new System.Drawing.Point(0, 0);
             this.lbl_KST_MyMsg.Name = "lbl_KST_MyMsg";
             this.lbl_KST_MyMsg.Padding = new System.Windows.Forms.Padding(4);
-            this.lbl_KST_MyMsg.Size = new System.Drawing.Size(841, 26);
+            this.lbl_KST_MyMsg.Size = new System.Drawing.Size(950, 65);
             this.lbl_KST_MyMsg.TabIndex = 10;
             this.lbl_KST_MyMsg.Text = "My Messages";
             this.lbl_KST_MyMsg.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
+            // splitContainer4
+            // 
+            this.splitContainer4.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainer4.Location = new System.Drawing.Point(0, 32);
+            this.splitContainer4.Name = "splitContainer4";
+            // 
+            // splitContainer4.Panel1
+            // 
+            this.splitContainer4.Panel1.Controls.Add(this.lv_Calls);
+            // 
+            // splitContainer4.Panel2
+            // 
+            this.splitContainer4.Panel2.Controls.Add(this.lv_Cluster);
+            this.splitContainer4.Size = new System.Drawing.Size(244, 623);
+            this.splitContainer4.SplitterDistance = 118;
+            this.splitContainer4.TabIndex = 15;
+            // 
             // lv_Calls
             // 
+            this.lv_Calls.ColumnHeadersHeight = 40;
             this.lv_Calls.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lv_Calls.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lv_Calls.Location = new System.Drawing.Point(0, 24);
@@ -3214,6 +3377,7 @@ namespace wtKST
             this.lv_Calls.Name = "lv_Calls";
             this.lv_Calls.ReadOnly = true;
             this.lv_Calls.RowHeadersVisible = false;
+            this.lv_Calls.RowHeadersWidth = 72;
             this.lv_Calls.RowTemplate.Height = 17;
             this.lv_Calls.ShowCellToolTips = false;
             this.lv_Calls.Size = new System.Drawing.Size(353, 658);
@@ -3224,9 +3388,25 @@ namespace wtKST
             this.lv_Calls.CellStateChanged += new System.Windows.Forms.DataGridViewCellStateChangedEventHandler(this.lv_Calls_CellStateChanged);
             this.lv_Calls.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.lv_Calls_CellValueChanged);
             this.lv_Calls.ColumnHeaderMouseClick += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.lv_Calls_ColumnClick);
+            this.lv_Calls.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.lv_DataBindingComplete);
             this.lv_Calls.ClientSizeChanged += new System.EventHandler(this.lv_Calls_clientSizeChanged);
             this.lv_Calls.MouseWheel += new System.Windows.Forms.MouseEventHandler(this.lv_Calls_mousewheel_event);
-            this.lv_Calls.DataBindingComplete += new System.Windows.Forms.DataGridViewBindingCompleteEventHandler(this.lv_DataBindingComplete);
+            // 
+            // lv_Cluster
+            // 
+            this.lv_Cluster.ColumnHeadersHeight = 40;
+            this.lv_Cluster.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lv_Cluster.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lv_Cluster.Location = new System.Drawing.Point(0, 0);
+            this.lv_Cluster.MultiSelect = false;
+            this.lv_Cluster.Name = "lv_Cluster";
+            this.lv_Cluster.ReadOnly = true;
+            this.lv_Cluster.RowHeadersVisible = false;
+            this.lv_Cluster.RowHeadersWidth = 72;
+            this.lv_Cluster.RowTemplate.Height = 17;
+            this.lv_Cluster.ShowCellToolTips = false;
+            this.lv_Cluster.Size = new System.Drawing.Size(122, 623);
+            this.lv_Cluster.TabIndex = 15;
             // 
             // lbl_KST_Calls
             // 
@@ -3245,6 +3425,8 @@ namespace wtKST
             // 
             // mn_Main
             // 
+            this.mn_Main.GripMargin = new System.Windows.Forms.Padding(2, 2, 0, 2);
+            this.mn_Main.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.mn_Main.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsm_File,
             this.tsm_KST,
@@ -3287,7 +3469,7 @@ namespace wtKST
             this.tsi_KST_Here,
             this.tsi_KST_Away});
             this.tsm_KST.Name = "tsm_KST";
-            this.tsm_KST.Size = new System.Drawing.Size(39, 20);
+            this.tsm_KST.Size = new System.Drawing.Size(39, 22);
             this.tsm_KST.Text = "&KST";
             // 
             // tsi_KST_Connect
@@ -3327,7 +3509,7 @@ namespace wtKST
             // tsi_Options
             // 
             this.tsi_Options.Name = "tsi_Options";
-            this.tsi_Options.Size = new System.Drawing.Size(61, 20);
+            this.tsi_Options.Size = new System.Drawing.Size(160, 22);
             this.tsi_Options.Text = "&Options";
             this.tsi_Options.Click += new System.EventHandler(this.tsi_Options_Click);
             // 
@@ -3485,6 +3667,7 @@ namespace wtKST
             // 
             // cmn_Notify
             // 
+            this.cmn_Notify.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.cmn_Notify.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.cmi_Notify_Restore,
             this.toolStripSeparator3,
@@ -3535,6 +3718,13 @@ namespace wtKST
             // 
             this.ti_UpdateFilter.Tick += new System.EventHandler(this.ti_UpdateFilter_Tick);
             // 
+            // ti_SpotTimeout
+            // 
+            this.ti_SpotTimeout.Enabled = true;
+            this.ti_SpotTimeout.Interval = 60000; // check every 1m
+            this.ti_SpotTimeout.Elapsed += new System.Timers.ElapsedEventHandler(this.ti_SpotTimeout_Tick);
+            this.ti_SpotTimeout.Start();
+            // 
             // bw_GetPlanes
             // 
             this.bw_GetPlanes.WorkerReportsProgress = true;
@@ -3545,6 +3735,7 @@ namespace wtKST
             // 
             // cmn_userlist
             // 
+            this.cmn_userlist.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.cmn_userlist.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.cmn_userlist_wtsked,
             this.cmn_userlist_chatReview});
@@ -3567,6 +3758,7 @@ namespace wtKST
             // 
             // cmn_msglist
             // 
+            this.cmn_msglist.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.cmn_msglist.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.cmn_msglist_toolStripTextBox_DirQRB,
             this.cmn_msglist_wtsked,
@@ -3575,12 +3767,12 @@ namespace wtKST
             this.cmn_msglist.Name = "cmn_msglist";
             this.cmn_msglist.Size = new System.Drawing.Size(181, 117);
             // 
-            // toolStripTextBox_CallQRBDir
+            // cmn_msglist_toolStripTextBox_DirQRB
             // 
             this.cmn_msglist_toolStripTextBox_DirQRB.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.cmn_msglist_toolStripTextBox_DirQRB.Name = "toolStripTextBox_CallQRBDir";
+            this.cmn_msglist_toolStripTextBox_DirQRB.Name = "cmn_msglist_toolStripTextBox_DirQRB";
             this.cmn_msglist_toolStripTextBox_DirQRB.ReadOnly = true;
-            this.cmn_msglist_toolStripTextBox_DirQRB.Size = new System.Drawing.Size(100, 23);
+            this.cmn_msglist_toolStripTextBox_DirQRB.Size = new System.Drawing.Size(100, 35);
             this.cmn_msglist_toolStripTextBox_DirQRB.Text = "Call 1000km 350°";
             // 
             // cmn_msglist_wtsked
@@ -3592,15 +3784,15 @@ namespace wtKST
             // 
             // cmn_msglist_chatReview
             // 
-            this.cmn_msglist_chatReview.Size = new System.Drawing.Size(148, 22);
             this.cmn_msglist_chatReview.Name = "cmn_msglist_chatReview";
+            this.cmn_msglist_chatReview.Size = new System.Drawing.Size(148, 22);
             this.cmn_msglist_chatReview.Text = "Chat &Review";
             this.cmn_msglist_chatReview.Click += new System.EventHandler(this.cmn_item_chatReview_Click);
             // 
             // cmn_msglist_openURL
             // 
-            this.cmn_msglist_openURL.Size = new System.Drawing.Size(148, 22);
             this.cmn_msglist_openURL.Name = "cmn_msglist_openURL";
+            this.cmn_msglist_openURL.Size = new System.Drawing.Size(148, 22);
             this.cmn_msglist_openURL.Text = "&Open URL";
             this.cmn_msglist_openURL.Click += new System.EventHandler(this.cmn_item_openURL_Click);
             // 
@@ -3632,7 +3824,12 @@ namespace wtKST
             this.splitContainer3.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).EndInit();
             this.splitContainer3.ResumeLayout(false);
+            this.splitContainer4.Panel1.ResumeLayout(false);
+            this.splitContainer4.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer4)).EndInit();
+            this.splitContainer4.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.lv_Calls)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.lv_Cluster)).EndInit();
             this.mn_Main.ResumeLayout(false);
             this.mn_Main.PerformLayout();
             this.cmn_Notify.ResumeLayout(false);
@@ -3800,6 +3997,11 @@ namespace wtKST
             menu_btn_macro_0.Visible = Settings.Default.KST_M0;
             if (!Settings.Default.KST_Macro_9.Equals(menu_btn_macro_0.Text))
                 menu_btn_macro_0.Text = Settings.Default.KST_Macro_0;
+        }
+
+        private void lv_Calls_mousewheel_event(object sender, MouseEventArgs e)
+        {
+
         }
     }
 }

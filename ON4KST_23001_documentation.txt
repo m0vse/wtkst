@@ -175,7 +175,7 @@ SDXQ|chat id|qrg min1|qrg max1|qrg min2|qrg max2|...|qrg min8|qrg max8|
 all QRG are optionnal. e.g. 
 SDXQ|2| -> no DX
 SDXQ|2|50000.1|50500.0| -> one QRG range only, means the DX with the QRG upper or equal to 50000.1 and below 50500.0 will be sent.
-
+SDXQ|2|144000.0|146000.0|433000.0|440000.0|
 To set MAP qrg ranges (session only - any time -)
 SMAQ|chat id|qrg min1|qrg max1|qrg min2|qrg max2|qrg min3|qrg max3|qrg min4|qrg max4|
 all QRG are optionnal. e.g. 

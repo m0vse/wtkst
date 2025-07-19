@@ -56,6 +56,12 @@
     <Setting Name="ShowBeacons" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="EnableSpots" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="SpotTimeout" Type="System.String" Scope="User">
+      <Value Profile="(Default)">30</Value>
+    </Setting>
     <Setting Name="BeaconFileName" Type="System.String" Scope="User">
       <Value Profile="(Default)">beacons.lst</Value>
     </Setting>
@@ -129,7 +135,7 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="KST_MaxDist" Type="System.String" Scope="User">
-      <Value Profile="(Default)">1200</Value>
+      <Value Profile="(Default)">30</Value>
     </Setting>
     <Setting Name="UpgradeRequired" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
@@ -219,6 +225,9 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="QARTest_Sync_active" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="N1MM_Sync_active" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
