@@ -1,0 +1,164 @@
+name: Build and Release Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    env:
+      CONFIGURATION: Release
+      PLATFORM: x86
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+
+          if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+            throw "Tag '$tag' must be a numeric version like v3.2.3 or v3.2.3.4."
+          }
+
+          $parts = $version.Split('.')
+          $assemblyVersion = if ($parts.Count -eq 3) { "$version.0" } else { $version }
+          $installerVersion = ($assemblyVersion.Split('.')[0..2] -join '.')
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "assembly_version=$assemblyVersion" >> $env:GITHUB_OUTPUT
+          "installer_version=$installerVersion" >> $env:GITHUB_OUTPUT
+          "artifact_version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Apply tag version
+        shell: pwsh
+        run: |
+          $assemblyVersion = "${{ steps.version.outputs.assembly_version }}"
+          $installerVersion = "${{ steps.version.outputs.installer_version }}"
+
+          $assemblyInfo = Get-Content Properties\AssemblyInfo.cs -Raw
+          $assemblyInfo = $assemblyInfo -replace 'AssemblyVersion\("[^"]+"\)', "AssemblyVersion(`"$assemblyVersion`")"
+          $assemblyInfo = $assemblyInfo -replace 'AssemblyFileVersion\("[^"]+"\)', "AssemblyFileVersion(`"$assemblyVersion`")"
+          Set-Content Properties\AssemblyInfo.cs $assemblyInfo -NoNewline
+
+          [xml]$project = Get-Content wtKST.csproj
+          $ns = New-Object System.Xml.XmlNamespaceManager($project.NameTable)
+          $ns.AddNamespace('msb', 'http://schemas.microsoft.com/developer/msbuild/2003')
+          $appVersionNode = $project.SelectSingleNode('//msb:ApplicationVersion', $ns)
+          if ($null -eq $appVersionNode) {
+            throw "Could not find ApplicationVersion in wtKST.csproj."
+          }
+          $appVersionNode.InnerText = $assemblyVersion
+          $project.Save((Join-Path $PWD 'wtKST.csproj'))
+
+          $setup = Get-Content Setup\Setup.vdproj -Raw
+          $setup = $setup -replace '("ProductVersion" = "8:)[^"]+(")', "`${1}$installerVersion`${2}"
+          $setup = $setup -replace '("ProductCode" = "8:)\{[^}]+\}(")', "`${1}{$([guid]::NewGuid().ToString().ToUpperInvariant())}`${2}"
+          $setup = $setup -replace '("PackageCode" = "8:)\{[^}]+\}(")', "`${1}{$([guid]::NewGuid().ToString().ToUpperInvariant())}`${2}"
+          Set-Content Setup\Setup.vdproj $setup -NoNewline
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: msbuild wtKST.sln /t:Restore /p:Configuration=${{ env.CONFIGURATION }} /p:Platform="${{ env.PLATFORM }}"
+
+      - name: Build application
+        shell: pwsh
+        run: msbuild wtKST.sln /p:Configuration=${{ env.CONFIGURATION }} /p:Platform="${{ env.PLATFORM }}" /m
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          $vstest = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          if (!(Test-Path $vstest)) {
+            $vstest = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          }
+          if (!(Test-Path $vstest)) {
+            $vstest = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          }
+          if (!(Test-Path $vstest)) {
+            throw "Could not find vstest.console.exe."
+          }
+          & $vstest kstTest\bin\Release\net48\kstTest.exe /Platform:x86
+
+      - name: Enable Visual Studio Installer Projects
+        shell: pwsh
+        run: |
+          $vsixUrl = 'https://marketplace.visualstudio.com/_apis/public/gallery/publishers/VisualStudioClient/vsextensions/MicrosoftVisualStudio2022InstallerProjects/latest/vspackage'
+          $vsixPath = Join-Path $env:RUNNER_TEMP 'MicrosoftVisualStudio2022InstallerProjects.vsix'
+          Invoke-WebRequest -Uri $vsixUrl -OutFile $vsixPath
+
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\VSIXInstaller.exe"
+          if (!(Test-Path $installer)) {
+            throw "Could not find VSIXInstaller.exe."
+          }
+
+          & $installer /quiet /admin $vsixPath
+
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          $devenv = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.com"
+          if (!(Test-Path $devenv)) {
+            $devenv = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.com"
+          }
+          if (!(Test-Path $devenv)) {
+            $devenv = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+          }
+          if (!(Test-Path $devenv)) {
+            throw "Could not find devenv.com."
+          }
+
+          & $devenv Setup\Setup.vdproj /Build "${{ env.CONFIGURATION }}"
+
+      - name: Stage artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.artifact_version }}"
+          $stage = Join-Path $PWD 'artifacts'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          $msi = Get-ChildItem Setup\Release -Filter *.msi | Select-Object -First 1
+          if ($null -eq $msi) {
+            throw "Could not find built MSI under Setup\Release."
+          }
+
+          $msiOut = Join-Path $stage "wtKST-$version.msi"
+          Copy-Item $msi.FullName $msiOut
+
+          $zipOut = Join-Path $stage "wtKST-$version-portable.zip"
+          Compress-Archive -Path bin\Release\* -DestinationPath $zipOut -Force
+
+          "msi=$msiOut" >> $env:GITHUB_OUTPUT
+          "portable_zip=$zipOut" >> $env:GITHUB_OUTPUT
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wtKST-${{ steps.version.outputs.artifact_version }}
+          path: artifacts/*
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" `
+            "${{ steps.artifacts.outputs.msi }}" `
+            "${{ steps.artifacts.outputs.portable_zip }}" `
+            --title "wtKST ${{ steps.version.outputs.artifact_version }}" `
+            --notes "Automated release for ${{ steps.version.outputs.tag }}."
