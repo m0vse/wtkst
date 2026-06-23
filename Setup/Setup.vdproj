@@ -922,7 +922,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_35A9088FD3CD4EDFB791EF1568F14FDA"
             {
-            "SourcePath" = "8:..\\Telnet\\obj\\Release\\Telnet.dll"
+            "SourcePath" = "8:..\\Telnet\\bin\\Release\\Telnet.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_438329C0BEA74D969CFC50719E16053E"
@@ -948,37 +948,9 @@
                 {
                 }
             }
-            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_684047AA40D04C62ABF73884FE40E975"
-            {
-            "SourcePath" = "8:"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_438329C0BEA74D969CFC50719E16053E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            "ProjectOutputGroupRegister" = "3:1"
-            "OutputConfiguration" = "8:"
-            "OutputGroupCanonicalName" = "8:Symbols"
-            "OutputProjectGuid" = "8:{329EC555-7D88-4D0D-900E-0E8071A88E7D}"
-            "ShowKeyOutput" = "11:TRUE"
-                "ExcludeFilters"
-                {
-                }
-            }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_E19182F47A384AFC90DF7538AB8EBE47"
             {
-            "SourcePath" = "8:..\\WinTest\\obj\\Release\\WinTest.dll"
+            "SourcePath" = "8:..\\LoggerIntegrations\\WinTest\\bin\\Release\\WinTest.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_438329C0BEA74D969CFC50719E16053E"
@@ -1006,7 +978,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_E1FE572876094762A4D99AAFDF813752"
             {
-            "SourcePath" = "8:..\\obj\\x86\\Release\\wtKST.exe"
+            "SourcePath" = "8:..\\bin\\Release\\wtKST.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_438329C0BEA74D969CFC50719E16053E"
