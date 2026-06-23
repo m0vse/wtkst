@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinTest", "LoggerIntegratio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "kstTest", "kstTest\kstTest.csproj", "{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "wtKST Setup", "Setup\Setup.vdproj", "{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug_Ubuntu|Any CPU = Debug_Ubuntu|Any CPU
@@ -122,6 +124,18 @@ Global
 		{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9}.Release|x64.Build.0 = Release|Any CPU
 		{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9}.Release|x86.ActiveCfg = Release|Any CPU
 		{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9}.Release|x86.Build.0 = Release|Any CPU
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Debug_Ubuntu|Any CPU.ActiveCfg = Debug
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Debug_Ubuntu|x64.ActiveCfg = Debug
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Debug_Ubuntu|x86.ActiveCfg = Debug
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Debug|Any CPU.ActiveCfg = Debug
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Debug|x64.ActiveCfg = Debug
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Debug|x86.ActiveCfg = Debug
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Release_Ubuntu|Any CPU.ActiveCfg = Release
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Release_Ubuntu|x64.ActiveCfg = Release
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Release_Ubuntu|x86.ActiveCfg = Release
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Release|Any CPU.ActiveCfg = Release
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Release|x64.ActiveCfg = Release
+		{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}.Release|x86.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

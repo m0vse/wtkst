@@ -131,70 +131,11 @@ jobs:
             & $devenv /UpdateConfiguration
           }
 
-      - name: Prepare installer project
+      - name: Prepare installer inputs
         shell: pwsh
         run: |
           if (!(Test-Path qrv.xml)) {
             '<DocumentElement />' | Set-Content qrv.xml -NoNewline
-          }
-
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          if (!(Test-Path $vswhere)) {
-            throw "Could not find vswhere.exe."
-          }
-
-          $vsInstance = & $vswhere -latest -products * -version "${{ env.VS_VERSION_RANGE }}" -format json |
-            ConvertFrom-Json |
-            Select-Object -First 1
-          if ($null -eq $vsInstance -or [string]::IsNullOrWhiteSpace($vsInstance.instanceId)) {
-            throw "Could not determine the Visual Studio 2022 instance ID."
-          }
-
-          $vsMajorVersion = ($vsInstance.installationVersion -split '\.')[0]
-          $vsInstanceRoot = "$vsMajorVersion.0_$($vsInstance.instanceId)"
-          $vsRoots = @(
-            "HKCU:\Software\Microsoft\VisualStudio\$vsInstanceRoot",
-            "HKCU:\Software\Microsoft\VisualStudio\$($vsInstanceRoot)_Config",
-            "HKCU:\Software\Microsoft\VisualStudio\$vsMajorVersion.0",
-            "HKCU:\Software\Microsoft\VisualStudio\$($vsMajorVersion).0_Config"
-          ) | Select-Object -Unique
-          foreach ($vsRoot in $vsRoots) {
-            $msbuildKey = Join-Path $vsRoot 'MSBuild'
-            New-Item -Path $msbuildKey -Force | Out-Null
-            New-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild -Value 1 -PropertyType DWORD -Force | Out-Null
-            Get-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild
-          }
-
-          $sourceSolutionPath = Join-Path $PWD 'wtKST.sln'
-          $solutionPath = Join-Path $PWD 'InstallerBuild.sln'
-          $solution = Get-Content $sourceSolutionPath -Raw
-          $solution = $solution -replace '(?ms)^Project\("\{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC\}"\) = "kstTest", "kstTest\\kstTest\.csproj", "\{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9\}"\r?\nEndProject\r?\n', ''
-          $solution = $solution -replace '(?m)^\s*\{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9\}\.[^\r\n]*\r?\n', ''
-          if ($solution -notmatch [regex]::Escape('Setup\Setup.vdproj')) {
-            $setupTypeGuid = '{54435603-DBB4-11D2-8724-00A0C9A8B90C}'
-            $setupProjectGuid = '{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}'
-            $setupProject = "Project(`"$setupTypeGuid`") = `"wtKST Setup`", `"Setup\Setup.vdproj`", `"$setupProjectGuid`"`r`nEndProject`r`n"
-            $solution = $solution -replace '(?m)^Global\r?$', ($setupProject + 'Global')
-
-            $setupConfigs = @(
-              "`t`t$($setupProjectGuid).Debug_Ubuntu|Any CPU.ActiveCfg = Debug"
-              "`t`t$($setupProjectGuid).Debug_Ubuntu|x64.ActiveCfg = Debug"
-              "`t`t$($setupProjectGuid).Debug_Ubuntu|x86.ActiveCfg = Debug"
-              "`t`t$($setupProjectGuid).Debug|Any CPU.ActiveCfg = Debug"
-              "`t`t$($setupProjectGuid).Debug|x64.ActiveCfg = Debug"
-              "`t`t$($setupProjectGuid).Debug|x86.ActiveCfg = Debug"
-              "`t`t$($setupProjectGuid).Release_Ubuntu|Any CPU.ActiveCfg = Release"
-              "`t`t$($setupProjectGuid).Release_Ubuntu|x64.ActiveCfg = Release"
-              "`t`t$($setupProjectGuid).Release_Ubuntu|x86.ActiveCfg = Release"
-              "`t`t$($setupProjectGuid).Release|Any CPU.ActiveCfg = Release"
-              "`t`t$($setupProjectGuid).Release|x64.ActiveCfg = Release"
-              "`t`t$($setupProjectGuid).Release|x86.ActiveCfg = Release"
-            ) -join "`r`n"
-            $solution = $solution -replace '(?m)^(\s*EndGlobalSection\s*\r?\n\s*GlobalSection\(SolutionProperties\))', ($setupConfigs + "`r`n`$1")
-            Set-Content $solutionPath $solution -NoNewline
-          }
-          else {
-            Set-Content $solutionPath $solution -NoNewline
           }
 
       - name: Build MSI installer
@@ -219,7 +160,7 @@ jobs:
             throw "Could not find devenv.com under '$vsInstall'."
           }
 
-          & $devenv InstallerBuild.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup" /ProjectConfig "${{ env.CONFIGURATION }}"
+          & $devenv wtKST.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup" /ProjectConfig "${{ env.CONFIGURATION }}"
 
       - name: Stage artifacts
         id: artifacts
