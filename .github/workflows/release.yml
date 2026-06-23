@@ -81,7 +81,7 @@ jobs:
 
       - name: Run tests
         shell: pwsh
-        run: dotnet vstest kstTest\bin\Release\net48\kstTest.exe --Platform:x86 --logger:"trx;LogFileName=test-results.trx"
+        run: dotnet vstest kstTest\bin\Release\net48\kstTest.exe --Platform x86 --logger "trx;LogFileName=test-results.trx"
 
       - name: Enable Visual Studio Installer Projects
         shell: pwsh
