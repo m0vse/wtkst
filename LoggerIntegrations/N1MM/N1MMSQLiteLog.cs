@@ -34,7 +34,8 @@ namespace wtKST
 
             try
             {
-                string connectionString = "Data Source=" + dbPath + ";Version=3;Read Only=True;";
+                List<QsoRecord> records = new List<QsoRecord>();
+                string connectionString = BuildConnectionString(dbPath);
                 using (var conn = new SQLiteConnection(connectionString))
                 {
                     conn.Open();
@@ -47,10 +48,6 @@ namespace wtKST
                         cmd.Parameters.AddWithValue("@nr", ContestNR);
                         using (var reader = cmd.ExecuteReader())
                         {
-                            lock (QSOlock)
-                            {
-                                QSO.Clear();
-                            }
                             while (reader.Read())
                             {
                                 string call = reader["Call"].ToString().Trim();
@@ -70,29 +67,12 @@ namespace wtKST
                                 if (string.IsNullOrEmpty(call) || string.IsNullOrEmpty(band))
                                     continue;
 
-                                DataRow row = QSO.NewRow();
-                                row["CALL"] = call;
-                                row["BAND"] = band;
-                                row["TIME"] = ts;
-                                row["SENT"] = sent;
-                                row["RCVD"] = rcvd;
-                                row["LOC"] = loc;
-
-                                try
-                                {
-                                    lock (QSOlock)
-                                    {
-                                        if (QSO.Rows.Find(new object[] { call, band }) == null)
-                                            QSO.Rows.Add(row);
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Error("(" + call + "): " + ex.Message);
-                                }
+                                records.Add(new QsoRecord(call, band, ts, sent, rcvd, loc));
                             }
                         }
                     }
+
+                    MergeDatabaseRecords(records);
                     LogState = LOG_STATE.LOG_IN_SYNC;
                 }
             }
@@ -101,6 +81,63 @@ namespace wtKST
                 Error("(" + dbPath + "): " + ex.Message);
                 LogState = LOG_STATE.LOG_INACTIVE;
             }
+        }
+
+        private void MergeDatabaseRecords(List<QsoRecord> records)
+        {
+            HashSet<string> databaseKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (QsoRecord record in records)
+                databaseKeys.Add(record.Key);
+
+            lock (QSOlock)
+            {
+                for (int i = QSO.Rows.Count - 1; i >= 0; i--)
+                {
+                    DataRow row = QSO.Rows[i];
+                    string key = BuildKey(row["CALL"].ToString(), row["BAND"].ToString());
+                    if (!databaseKeys.Contains(key) && !KeepRowMissingFromDatabase(row))
+                        QSO.Rows.RemoveAt(i);
+                }
+
+                foreach (QsoRecord record in records)
+                {
+                    try
+                    {
+                        DataRow row = QSO.NewRow();
+                        row["CALL"] = record.Call;
+                        row["BAND"] = record.Band;
+                        row["TIME"] = record.Time;
+                        row["SENT"] = record.Sent;
+                        row["RCVD"] = record.Rcvd;
+                        row["LOC"] = record.Loc;
+
+                        DataRow existing = QSO.Rows.Find(new object[] { record.Call, record.Band });
+                        if (existing != null)
+                            existing.ItemArray = row.ItemArray;
+                        else
+                            QSO.Rows.Add(row);
+                        DatabaseRowMerged(record.Key);
+                    }
+                    catch (Exception ex)
+                    {
+                        Error("(" + record.Call + "): " + ex.Message);
+                    }
+                }
+            }
+        }
+
+        protected virtual bool KeepRowMissingFromDatabase(DataRow row)
+        {
+            return false;
+        }
+
+        protected virtual void DatabaseRowMerged(string key)
+        {
+        }
+
+        protected static string BuildKey(string call, string band)
+        {
+            return (call ?? "").Trim() + "\u001f" + (band ?? "").Trim();
         }
 
         private static string BandFromMhz(double mhz)
@@ -123,7 +160,7 @@ namespace wtKST
         public static List<ContestEntry> LoadContests(string dbPath)
         {
             var result = new List<ContestEntry>();
-            string connectionString = "Data Source=" + dbPath + ";Version=3;Read Only=True;";
+            string connectionString = BuildConnectionString(dbPath);
             using (var conn = new SQLiteConnection(connectionString))
             {
                 conn.Open();
@@ -144,6 +181,39 @@ namespace wtKST
                 }
             }
             return result;
+        }
+
+        private static string BuildConnectionString(string dbPath)
+        {
+            var builder = new SQLiteConnectionStringBuilder
+            {
+                DataSource = dbPath,
+                Version = 3,
+                ReadOnly = true
+            };
+            return builder.ConnectionString;
+        }
+
+        protected class QsoRecord
+        {
+            public QsoRecord(string call, string band, string time, string sent, string rcvd, string loc)
+            {
+                Call = call;
+                Band = band;
+                Time = time;
+                Sent = sent;
+                Rcvd = rcvd;
+                Loc = loc;
+                Key = BuildKey(call, band);
+            }
+
+            public string Call { get; private set; }
+            public string Band { get; private set; }
+            public string Time { get; private set; }
+            public string Sent { get; private set; }
+            public string Rcvd { get; private set; }
+            public string Loc { get; private set; }
+            public string Key { get; private set; }
         }
 
         public class ContestEntry

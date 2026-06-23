@@ -53,7 +53,6 @@
     <Compile Include="..\DXLog\NetworkMsgSync.cs" />
     <Compile Include="..\DXLog\NetworkMsgSyncRequest.cs" />
     <Compile Include="..\QARTest\QARTestLogSync.cs" />
-    <Compile Include="N1MMLogSync.cs" />
     <Compile Include="WinTestLog.cs" />
     <Compile Include="WinTestLogBase.cs" />
     <Compile Include="wtLogSync.cs" />

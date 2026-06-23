@@ -550,8 +550,8 @@ namespace wtKST
                     if (wtQSO is WinTest.WinTestLog)           intName = "WT File";
                     else if (wtQSO is WinTest.WtLogSync)       intName = WinTest.WinTest.advancedNetActivated ? "WT Net (Advanced)" : "WT Net";
                     else if (wtQSO is WinTest.QARTestLogSync)  intName = "QARTest";
+                    else if (wtQSO is N1MMLiveSQLiteLog)       intName = "N1MM + UDP";
                     else if (wtQSO is N1MMSQLiteLog)           intName = "N1MM";
-                    else if (wtQSO is WinTest.N1MMLogSync)     intName = "N1MM UDP";
                     else if (wtQSO is WinTest.DXL.DXLogSync)  intName = "DXLog";
                     else if (wtQSO is ADIFContestLog)          intName = "ADIF";
                     else                                       intName = "Log";
@@ -1236,7 +1236,7 @@ namespace wtKST
 
                         Console.WriteLine("wtQSO active " + wtQSO.GetType().ToString());
                         ((IDisposable)wtQSO).Dispose();
-                        wtQSO = null; // TODO: dispose?
+                        wtQSO = null;
                     }
                 }
                 // check if we are running on Windows, otherwise Win-Test will not run
@@ -1330,12 +1330,16 @@ namespace wtKST
             }
             else if (Settings.Default.N1MM_Sync_active)
             {
-                ti_N1MM.Stop();
                 if (wtQSO != null)
                 {
-                    if (wtQSO.GetType() == typeof(WinTest.N1MMLogSync))
+                    if (wtQSO.GetType() == typeof(N1MMLiveSQLiteLog))
                     {
-                        Console.WriteLine("wtQSO already N1MMLogSync");
+                        ((N1MMLiveSQLiteLog)wtQSO).ContestNR = Settings.Default.N1MM_ContestNR;
+                        int n1mmInterval = Math.Max(1000, Settings.Default.N1MM_UpdateInterval * 1000);
+                        if (ti_N1MM.Interval != n1mmInterval)
+                            ti_N1MM.Interval = n1mmInterval;
+                        if (!ti_N1MM.Enabled)
+                            ti_N1MM.Start();
                         return;
                     }
                     else
@@ -1345,13 +1349,17 @@ namespace wtKST
                         wtQSO = null;
                     }
                 }
-                wtQSO = new WinTest.N1MMLogSync(MainDlg.Log.WriteMessage);
+                var n1mmLog = new N1MMLiveSQLiteLog(MainDlg.Log.WriteMessage);
+                n1mmLog.ContestNR = Settings.Default.N1MM_ContestNR;
+                wtQSO = n1mmLog;
                 if (wts != null)
                 {
                     Console.WriteLine("wts active - turn off");
                     wts = null;
                 }
                 wtQSO.LogStateChanged += Log_StateChanged;
+                ti_N1MM.Interval = Math.Max(1000, Settings.Default.N1MM_UpdateInterval * 1000);
+                ti_N1MM.Start();
             }
             else if (Settings.Default.DXLog_Sync_active)
             {
@@ -1408,7 +1416,8 @@ namespace wtKST
                 {
 
                     Console.WriteLine("wtQSO active " + wtQSO.GetType().ToString());
-                    wtQSO = null; // TODO: dispose?
+                    ((IDisposable)wtQSO).Dispose();
+                    wtQSO = null;
                 }
                 // turn off wintest status support
                 if (wts != null)
@@ -1557,8 +1566,6 @@ namespace wtKST
                                     wtQSO.Get_QSOs(Settings.Default.WinTest_StationName);
                                 else if (wtQSO.GetType() == typeof(QARTestLogSync))
                                     wtQSO.Get_QSOs("");
-                                else if (wtQSO.GetType() == typeof(WinTest.N1MMLogSync))
-                                    wtQSO.Get_QSOs("");
                                 else if (wtQSO.GetType() == typeof(DXLogSync))
                                     wtQSO.Get_QSOs("");
                                 else if (wtQSO.GetType() == typeof(ADIFContestLog))
@@ -1595,7 +1602,8 @@ namespace wtKST
         private void ti_N1MM_Tick(object sender, EventArgs e)
         {
             ti_N1MM.Stop();
-            if (KST.State == KSTcom.KST_STATE.Connected && wtQSO != null && wtQSO.GetType() == typeof(N1MMSQLiteLog))
+            if (KST.State == KSTcom.KST_STATE.Connected && wtQSO != null &&
+                (wtQSO.GetType() == typeof(N1MMSQLiteLog) || wtQSO.GetType() == typeof(N1MMLiveSQLiteLog)))
             {
                 lock (wtQSO)
                 {

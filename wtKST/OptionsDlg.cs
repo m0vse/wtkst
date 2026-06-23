@@ -842,9 +842,9 @@ namespace wtKST
             this.cb_N1MM_Active.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.cb_N1MM_Active.Location = new System.Drawing.Point(8, 22);
             this.cb_N1MM_Active.Name = "cb_N1MM_Active";
-            this.cb_N1MM_Active.Size = new System.Drawing.Size(65, 17);
+            this.cb_N1MM_Active.Size = new System.Drawing.Size(63, 17);
             this.cb_N1MM_Active.TabIndex = 10;
-            this.cb_N1MM_Active.Text = "Activate";
+            this.cb_N1MM_Active.Text = "DB only";
             this.cb_N1MM_Active.UseVisualStyleBackColor = true;
             this.cb_N1MM_Active.CheckedChanged += new System.EventHandler(this.cb_N1MM_Active_CheckedChanged);
             //
@@ -853,11 +853,11 @@ namespace wtKST
             this.cb_N1MM_Live_Active.AutoSize = true;
             this.cb_N1MM_Live_Active.Checked = global::wtKST.Properties.Settings.Default.N1MM_Sync_active;
             this.cb_N1MM_Live_Active.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cb_N1MM_Live_Active.Location = new System.Drawing.Point(220, 22);
+            this.cb_N1MM_Live_Active.Location = new System.Drawing.Point(77, 22);
             this.cb_N1MM_Live_Active.Name = "cb_N1MM_Live_Active";
             this.cb_N1MM_Live_Active.Size = new System.Drawing.Size(116, 17);
             this.cb_N1MM_Live_Active.TabIndex = 19;
-            this.cb_N1MM_Live_Active.Text = "Live UDP";
+            this.cb_N1MM_Live_Active.Text = "DB + Live UDP";
             this.cb_N1MM_Live_Active.UseVisualStyleBackColor = true;
             this.cb_N1MM_Live_Active.CheckedChanged += new System.EventHandler(this.cb_N1MM_Live_Active_CheckedChanged);
             //
@@ -865,15 +865,15 @@ namespace wtKST
             //
             this.lbl_N1MM_Interval.AutoSize = true;
             this.lbl_N1MM_Interval.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lbl_N1MM_Interval.Location = new System.Drawing.Point(90, 24);
+            this.lbl_N1MM_Interval.Location = new System.Drawing.Point(210, 24);
             this.lbl_N1MM_Interval.Name = "lbl_N1MM_Interval";
             this.lbl_N1MM_Interval.TabIndex = 17;
-            this.lbl_N1MM_Interval.Text = "Refresh (s):";
+            this.lbl_N1MM_Interval.Text = "DB refresh (s):";
             //
             // tb_N1MM_Interval
             //
             this.tb_N1MM_Interval.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tb_N1MM_Interval.Location = new System.Drawing.Point(172, 22);
+            this.tb_N1MM_Interval.Location = new System.Drawing.Point(299, 22);
             this.tb_N1MM_Interval.Name = "tb_N1MM_Interval";
             this.tb_N1MM_Interval.Size = new System.Drawing.Size(40, 20);
             this.tb_N1MM_Interval.TabIndex = 18;

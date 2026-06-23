@@ -142,7 +142,9 @@
     <Compile Include="wtKST\Band.cs" />
     <Compile Include="LoggerIntegrations\ADIF\ADIFLog.cs" />
     <Compile Include="LoggerIntegrations\ADIF\ADIFContestLog.cs" />
+    <Compile Include="LoggerIntegrations\N1MM\N1MMContactInfoListener.cs" />
     <Compile Include="LoggerIntegrations\N1MM\N1MMSQLiteLog.cs" />
+    <Compile Include="LoggerIntegrations\N1MM\N1MMLiveSQLiteLog.cs" />
     <Compile Include="wtKST\ChatReview.cs">
       <SubType>Form</SubType>
     </Compile>
