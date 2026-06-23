@@ -124,6 +124,39 @@ jobs:
 
           & $installer /quiet /admin $vsixPath
 
+      - name: Prepare installer project
+        shell: pwsh
+        run: |
+          if (!(Test-Path qrv.xml)) {
+            '<DocumentElement />' | Set-Content qrv.xml -NoNewline
+          }
+
+          $solutionPath = Join-Path $PWD 'wtKST.sln'
+          $solution = Get-Content $solutionPath -Raw
+          if ($solution -notmatch [regex]::Escape('Setup\Setup.vdproj')) {
+            $setupTypeGuid = '{54435603-DBB4-11D2-8724-00A0C9A8B90C}'
+            $setupProjectGuid = '{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}'
+            $setupProject = "Project(`"$setupTypeGuid`") = `"wtKST Setup`", `"Setup\Setup.vdproj`", `"$setupProjectGuid`"`r`nEndProject`r`n"
+            $solution = $solution -replace '(?m)^Global\r?$', ($setupProject + 'Global')
+
+            $setupConfigs = @(
+              "`t`t$($setupProjectGuid).Debug_Ubuntu|Any CPU.ActiveCfg = Debug"
+              "`t`t$($setupProjectGuid).Debug_Ubuntu|x64.ActiveCfg = Debug"
+              "`t`t$($setupProjectGuid).Debug_Ubuntu|x86.ActiveCfg = Debug"
+              "`t`t$($setupProjectGuid).Debug|Any CPU.ActiveCfg = Debug"
+              "`t`t$($setupProjectGuid).Debug|x64.ActiveCfg = Debug"
+              "`t`t$($setupProjectGuid).Debug|x86.ActiveCfg = Debug"
+              "`t`t$($setupProjectGuid).Release_Ubuntu|Any CPU.ActiveCfg = Release"
+              "`t`t$($setupProjectGuid).Release_Ubuntu|x64.ActiveCfg = Release"
+              "`t`t$($setupProjectGuid).Release_Ubuntu|x86.ActiveCfg = Release"
+              "`t`t$($setupProjectGuid).Release|Any CPU.ActiveCfg = Release"
+              "`t`t$($setupProjectGuid).Release|x64.ActiveCfg = Release"
+              "`t`t$($setupProjectGuid).Release|x86.ActiveCfg = Release"
+            ) -join "`r`n"
+            $solution = $solution -replace '(?m)^(\s*EndGlobalSection\s*\r?\n\s*GlobalSection\(SolutionProperties\))', ($setupConfigs + "`r`n`$1")
+            Set-Content $solutionPath $solution -NoNewline
+          }
+
       - name: Build MSI installer
         shell: pwsh
         run: |
@@ -146,7 +179,7 @@ jobs:
             throw "Could not find devenv.com under '$vsInstall'."
           }
 
-          & $devenv Setup\Setup.vdproj /Build "${{ env.CONFIGURATION }}"
+          & $devenv wtKST.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup" /ProjectConfig "${{ env.CONFIGURATION }}"
 
       - name: Stage artifacts
         id: artifacts
