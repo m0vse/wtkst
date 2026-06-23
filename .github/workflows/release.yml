@@ -126,6 +126,10 @@ jobs:
           }
 
           & $installer /quiet /admin $vsixPath
+          $devenv = Join-Path $vsInstall 'Common7\IDE\devenv.com'
+          if (Test-Path $devenv) {
+            & $devenv /UpdateConfiguration
+          }
 
       - name: Prepare installer project
         shell: pwsh
@@ -134,14 +138,31 @@ jobs:
             '<DocumentElement />' | Set-Content qrv.xml -NoNewline
           }
 
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (!(Test-Path $vswhere)) {
+            throw "Could not find vswhere.exe."
+          }
+
+          $vsInstance = & $vswhere -latest -products * -version "${{ env.VS_VERSION_RANGE }}" -format json |
+            ConvertFrom-Json |
+            Select-Object -First 1
+          if ($null -eq $vsInstance -or [string]::IsNullOrWhiteSpace($vsInstance.instanceId)) {
+            throw "Could not determine the Visual Studio 2022 instance ID."
+          }
+
+          $vsMajorVersion = ($vsInstance.installationVersion -split '\.')[0]
+          $vsInstanceRoot = "$vsMajorVersion.0_$($vsInstance.instanceId)"
           $vsRoots = @(
-            'HKCU:\Software\Microsoft\VisualStudio\17.0',
-            'HKCU:\Software\Microsoft\VisualStudio\17.0_Config'
-          )
+            "HKCU:\Software\Microsoft\VisualStudio\$vsInstanceRoot",
+            "HKCU:\Software\Microsoft\VisualStudio\$($vsInstanceRoot)_Config",
+            "HKCU:\Software\Microsoft\VisualStudio\$vsMajorVersion.0",
+            "HKCU:\Software\Microsoft\VisualStudio\$($vsMajorVersion).0_Config"
+          ) | Select-Object -Unique
           foreach ($vsRoot in $vsRoots) {
             $msbuildKey = Join-Path $vsRoot 'MSBuild'
             New-Item -Path $msbuildKey -Force | Out-Null
             New-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild -Value 1 -PropertyType DWORD -Force | Out-Null
+            Get-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild
           }
 
           $sourceSolutionPath = Join-Path $PWD 'wtKST.sln'
