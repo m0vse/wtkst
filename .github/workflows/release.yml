@@ -81,18 +81,7 @@ jobs:
 
       - name: Run tests
         shell: pwsh
-        run: |
-          $vstest = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
-          if (!(Test-Path $vstest)) {
-            $vstest = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
-          }
-          if (!(Test-Path $vstest)) {
-            $vstest = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
-          }
-          if (!(Test-Path $vstest)) {
-            throw "Could not find vstest.console.exe."
-          }
-          & $vstest kstTest\bin\Release\net48\kstTest.exe /Platform:x86
+        run: dotnet test kstTest\kstTest.csproj --configuration ${{ env.CONFIGURATION }} --no-restore --logger "trx;LogFileName=test-results.trx"
 
       - name: Enable Visual Studio Installer Projects
         shell: pwsh
