@@ -1,3 +1,48 @@
+3.2.2.1
+- Fix: index out of bounds error in user list handling (thanks Basti)
+- Fix: "Send" button needs to be disabled initially, otherwise software crashes without connection
+- New Feature: merge N1MM+ support (thanks Dani!!)
+- Improvement: Tooltip to show log entries
+- New Feature: merge DXLog support (thanks James and Dani!)
+- Improvement: log is checked more often (every 5s) and in its own timer, Log tooltip is updated, too
+- Improvement: make Airscout UDP port configurable (thanks Dani)
+- Improvement: Add QRB column to user list and support sort by QRB (thanks Dani)
+- Fix: regression introduced in 3.2.1.8 - option would allow only one change at a time, revert the change more or less
+- Improvement: Add locator to right mouse button menu in message list for quicker access
+
+3.2.1.8
+- Change .NET version from 4.7.2 to more common 4.8
+- Fix: improve Win-Test UDP message parser robustness
+- Fix: after version update, Macros were not correctly updated
+- Improvement: Speed up redraws for user list
+- Fix: remove last empty line in user list
+- Fix: apply changes to options only after OK button is actually clicked
+- New Feature: advanced network settings for Win-Test (thanks Philipp!)
+- Fix: start Airscout networking immediately and not only after user list changed once
+
+3.2.1.7
+- Fix: The server changed the address, "www.on4kst.info" currently does not work, change to "www.on4kst.org"
+- Fix: Win-Test network sync sometimes requested parts of the log it already had
+- Fix: Log check was not properly locked against update of the log
+  That caused some exceptions to be triggered.
+- Fix: browser based Airscout support should not be active by default
+  When upgrading from 3.1.4.x, Airscout support stops working, as both AS options get enabled
+- Fix: wording in Airscout option dialog regarding max. distance
+- Fix: if a user disconnects, sometimes error is flagged
+
+3.2.1.6
+- New Feature: Deduce band/QRV information from name field
+               nameInfo first, then stationDB. Local DB finally
+3.2.1.5
+- Fix: Macros: don't throw exception if no freq. is received from Win-Test yet
+- Fix: don't choke on "illegal" call signs as user ID
+- Fix: (Hopefully) fix exception that occurs from time to time related to checking the log
+
+3.2.1.4
+- Improvement: Macros evalute $NAME
+- Improvement: Update modifying the UI for QRV state per band
+- Improvement: QRV local database stores entries per user, not call
+
 3.2.1.3
 - Fix: there was a missing lock that lead to exceptions in the Airscout IF code on slow PCs
 - Fix: List of calls to check AS information for was not compiled correctly

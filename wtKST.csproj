@@ -6,7 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <OutputType>WinExe</OutputType>
     <AssemblyName>wtKST</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
     <WarningLevel>4</WarningLevel>
     <ProductVersion>10.0.0</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
@@ -26,8 +27,8 @@
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
     <AutorunEnabled>true</AutorunEnabled>
-    <ApplicationRevision>3</ApplicationRevision>
-    <ApplicationVersion>3.2.1.3</ApplicationVersion>
+    <ApplicationRevision>1</ApplicationRevision>
+    <ApplicationVersion>3.2.2.1</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
@@ -133,8 +134,15 @@
     <Compile Include="wtKST\AboutBox.Designer.cs">
       <DependentUpon>AboutBox.cs</DependentUpon>
     </Compile>
+    <Compile Include="wtKST\AdvancedWinTestNetwork.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="wtKST\AirScoutIF.cs" />
     <Compile Include="wtKST\AirscoutUDP.cs" />
+    <Compile Include="wtKST\Band.cs" />
+    <Compile Include="LoggerIntegrations\ADIF\ADIFLog.cs" />
+    <Compile Include="LoggerIntegrations\ADIF\ADIFContestLog.cs" />
+    <Compile Include="LoggerIntegrations\N1MM\N1MMSQLiteLog.cs" />
     <Compile Include="wtKST\ChatReview.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -169,6 +177,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Include="wtKST.Properties\Resources.resources" />
+    <EmbeddedResource Include="wtKST\AdvancedWinTestNetwork.resx">
+      <DependentUpon>AdvancedWinTestNetwork.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="wtKST\OptionsDlg.resx">
       <DependentUpon>OptionsDlg.cs</DependentUpon>
     </EmbeddedResource>
@@ -212,7 +223,7 @@
       <Project>{c0a19260-2ce0-4253-80cb-8579bcfdded3}</Project>
       <Name>Telnet</Name>
     </ProjectReference>
-    <ProjectReference Include="WinTest\WinTest.csproj">
+    <ProjectReference Include="LoggerIntegrations\WinTest\WinTest.csproj">
       <Project>{7b815c51-6896-4989-bd1b-8d2d7a116aa3}</Project>
       <Name>WinTest</Name>
     </ProjectReference>

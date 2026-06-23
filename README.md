@@ -1,10 +1,28 @@
+# Hot-Fix...
+
+Sylvain made a change to the server, so URL www.on4kst.info currently does not work.
+ 
+Hotfix:
+In Windows Explorer %localappdata%\wtKST<br>
+
+There should be at least one folder wtKST.exe_Url_xxxxxxx (xxxx being cryptic strings)<br>
+
+Inside is a folder with the wtKST version (e.g. 3.2.1.5) and there you will find the text file "user.config".<br>
+
+Open it with a text editor and correct the URL:<br>
+<code>`<setting name="KST_ServerName" serializeAs="String">`<br>
+      `    <value>www.on4kst.org</value>`<br>
+      `</setting>`<br></code>
+            
+Alternatively, you can use the new version https://github.com/dl8aau/wtkst/releases/tag/v3.2.1.7.
+
 # wtKST
 
 This software implements a client for the [ON4KST](http://www.on4kst.com/chat/start.php) chat. It is optimized for efficient sked management during
 VHF/UHF/SHF contests. It interfaces to Win-Test contest logging software and recently started to implement other
  logging software (e.g. QARTest).
 
- The software has been written originally by Frank Schm‰hling DL2ALF (https://github.com/dl2alf) for his team DL0GTH.
+ The software has been written originally by Frank Schm√§hling DL2ALF (https://github.com/dl2alf) for his team DL0GTH.
 
 
 This version is licensed under the GPL (v3 or later).
@@ -17,12 +35,17 @@ See the file LICENSE for details.
 * Filter messages addressed to/from me
 * Filter displayed users by distance to station, here/away status and additionally if already in the log
 * Sort users alphabetically or by antenna direction
-* Display information if a user is QRV probably on a band (based on Airscout database) 
+* Display information if a user is QRV probably on a band (based on Chat name or Airscout database) 
 * Support Airplane Scatter status through [Airscout](http://airscout.eu/index.php)
 * Supported log (as of now): 
     * [Win-Test v4](http://www.win-test.com/) file and network based
     * [QARTest](https://www.ik3qar.it/software/qartest/en/)
+    * [N1MMLogger+](https://n1mmwp.hamdocs.com/) file based
 * Make skeds in the Win-Test logging software
+
+# Settings
+
+In order to set N1MMLogger+ as logging, you need to select the s3db file used by N1MM. Usually found in C:\Users\\..username..\Documents\N1MM Logger+\Databases. Usually ham.s3db is the default used one. Then click Load and it will show the contests available in the database. Pick the latest one.
 
 # Installation
 

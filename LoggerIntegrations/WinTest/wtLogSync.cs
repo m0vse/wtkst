@@ -14,6 +14,7 @@ namespace WinTest
     public class WtLogSync : WinTestLogBase
     {
         private IPAddress localbroadcastIP;
+        private int localbroadcastPort;
 
         private wtListener wtl;
 
@@ -21,21 +22,33 @@ namespace WinTest
 
         public WtLogSync(LogWriteMessageDelegate mylog) : base(mylog)
         {
-            localbroadcastIP = WinTest.GetIpIFBroadcastAddress();
-            wtl = new wtListener(WinTest.WinTestDefaultPort);
+            if (WinTest.advancedNetActivated)
+            {
+                localbroadcastIP = WinTest.advancedWinTestBroadcastAddress;
+                localbroadcastPort = WinTest.advancedWinTestPort;
+            }
+            else
+            {
+                localbroadcastIP = WinTest.GetIpIFBroadcastAddress();
+                localbroadcastPort = WinTest.WinTestDefaultPort;
+            }
+            
+            wtl = new wtListener(localbroadcastPort);
             wtl.wtMessageReceived += wtMessageReceivedHandler;
 
-            QSO.Columns.Add("RUNSTN");
-            QSO.Columns.Add("LOGID");
-            QSO.Columns.Add("LOGNR", typeof(uint));
-            DataColumn[] QSOkeys = new DataColumn[]
+            lock (QSOlock)
             {
+                QSO.Columns.Add("RUNSTN");
+                QSO.Columns.Add("LOGID");
+                QSO.Columns.Add("LOGNR", typeof(uint));
+                DataColumn[] QSOkeys = new DataColumn[]
+                {
                 QSO.Columns["RUNSTN"],
                 QSO.Columns["LOGID"],
                 QSO.Columns["LOGNR"]
-            };
-            QSO.PrimaryKey = QSOkeys;
-
+                };
+                QSO.PrimaryKey = QSOkeys;
+            }
             WtlogsyncState = WTLOGSYNCSTATE.WAIT_HELLO;
 
             ti_get_log = new System.Timers.Timer();
@@ -60,7 +73,7 @@ namespace WinTest
                 client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1);
                 client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, 1);
                 client.Client.ReceiveTimeout = 10000;
-                IPEndPoint groupEp = new IPEndPoint(localbroadcastIP, WinTest.WinTestDefaultPort);
+                IPEndPoint groupEp = new IPEndPoint(localbroadcastIP, localbroadcastPort);
                 client.Connect(groupEp);
                 //Console.WriteLine("send: " + Msg.Data);
                 byte[] b = Msg.ToBytes();
@@ -128,6 +141,24 @@ namespace WinTest
 
                 this.AvailableFrom = AvailableFrom;
             }
+
+            public bool IsEqual(StationLogStat obj)
+            {
+                if (!(obj is StationLogStat))
+                    return false;
+
+                var sls = (StationLogStat)obj;
+
+                if (AvailableFrom != sls.AvailableFrom)
+                    return false;
+                if (ls.Count != sls.ls.Count)
+                    return false;
+                for (int i = 0; i < ls.Count; i++)
+                    if (ls[i].count_from != sls.ls[i].count_from || ls[i].count_to != sls.ls[i].count_to)
+                        return false;
+
+                return true;
+             }
         }
 
         private ulong StationProtocolVersion = 0;
@@ -212,7 +243,7 @@ namespace WinTest
             return false;
         }
 
-        private string needQSOsentForStationID;
+        private string needQSOsentForStationID = "";
         private uint needQSOsentForCountTo = 0;
         private DateTime needQSOSent_TimeStamp;
 
@@ -237,7 +268,9 @@ namespace WinTest
                     for (int i = 0; i < lst.ls.Count; i++)
                     {
                         if (lst.ls[i].count_from != myls.ls[i].count_from
-                            || lst.ls[i].count_to != myls.ls[i].count_to)
+                            || lst.ls[i].count_to > myls.ls[i].count_to)
+                            // count_to in myls can be bigger than the entry in our station list
+                            // happens when we receive a new QSO in ADDQSO, but IHAVE is not updated yet
                         {
                             done = false;
                             break;
@@ -347,6 +380,8 @@ namespace WinTest
             }
             return false;
         }
+        private bool logChanged = false;
+        private bool wtSynclistChangedNotChecked = true;
 
         private bool intimer = false;
         private void ti_ti_get_log_Tick(object sender, ElapsedEventArgs e)
@@ -358,6 +393,11 @@ namespace WinTest
                 if (WtlogsyncState != WTLOGSYNCSTATE.GET_QSO && WtlogsyncState != WTLOGSYNCSTATE.QSO_IN_SYNC)
                     return;
 
+                if (WtlogsyncState == WTLOGSYNCSTATE.QSO_IN_SYNC && wtSynclistChangedNotChecked == false)
+                {
+                    Console.WriteLine("ti_ti_get_log_Tick skip check");
+                    return;
+                }
                 intimer = true;
 
                 ti_get_log.Interval = 10000; // check every 10s
@@ -398,6 +438,7 @@ namespace WinTest
                                         wtStationSyncList.RemoveAll(x => x.from == sl.from);
                                         Console.WriteLine("remove " + sl.from);
                                         timeoutRemoveStation = true;
+                                        wtSynclistChangedNotChecked = true;
                                     }
                                     goto exitLoop;
                                 }
@@ -436,6 +477,7 @@ namespace WinTest
                                         wtStationSyncList.RemoveAll(x => x.from == sl.from);
                                         Console.WriteLine("remove " + sl.from);
                                         timeoutRemoveStation = true;
+                                        wtSynclistChangedNotChecked = true;
                                     }
                                     goto exitLoop;
                                 }
@@ -451,25 +493,31 @@ namespace WinTest
                 }
                 if (wtStationsActive && !needQSOs_sent && !timeoutRemoveStation)
                 {
+                    
                     if (WtlogsyncState == WTLOGSYNCSTATE.GET_QSO)
                         WtlogsyncState = WTLOGSYNCSTATE.QSO_IN_SYNC;
-                    Console.WriteLine("all done " + QSO.Rows.Count
-                                      + " 432: "
-                                      + QSO.Select("[BAND]='432M'").Length
-                                      + " 1296: "
-                                      + QSO.Select("[BAND]='1_2G'").Length
-                                      + " 2.3: "
-                                      + QSO.Select("[BAND]='2_3G'").Length
-                                      + " 5.7: "
-                                      + QSO.Select("[BAND]='5_7G'").Length
-                                      + " 10: "
-                                      + QSO.Select("[BAND]='10G'").Length
-                                      + " 24: "
-                                      + QSO.Select("[BAND]='24G'").Length
-                    );
-                    var log13cm = QSO.Select("[BAND]='2_3G'");
-                    //                foreach (var entry in log13cm)
-                    //                    Console.WriteLine(entry.ItemArray[0] + " " + entry.ItemArray[2] + " " + entry.ItemArray[3]);
+                    wtSynclistChangedNotChecked = false;
+                    if (logChanged)
+                    {
+                        logChanged = false;
+                        Console.WriteLine("all done " + QSO.Rows.Count
+                                          + " 432: "
+                                          + QSO.Select("[BAND]='432M'").Length
+                                          + " 1296: "
+                                          + QSO.Select("[BAND]='1_2G'").Length
+                                          + " 2.3: "
+                                          + QSO.Select("[BAND]='2_3G'").Length
+                                          + " 5.7: "
+                                          + QSO.Select("[BAND]='5_7G'").Length
+                                          + " 10: "
+                                          + QSO.Select("[BAND]='10G'").Length
+                                          + " 24: "
+                                          + QSO.Select("[BAND]='24G'").Length
+                        );
+                        var log13cm = QSO.Select("[BAND]='2_3G'");
+                        //                foreach (var entry in log13cm)
+                        //                    Console.WriteLine(entry.ItemArray[0] + " " + entry.ItemArray[2] + " " + entry.ItemArray[3]);
+                    }
                 }
                 else
                 {
@@ -550,8 +598,10 @@ namespace WinTest
                 { 
                     wtStationSyncList.Clear();
                 }
+                wtSynclistChangedNotChecked = true;
                 myLogState.Clear();
                 Clear_QSOs();
+                logChanged = true;
                 Debug("restart log");
                 // TODO event?
 
@@ -570,16 +620,7 @@ namespace WinTest
                 StationSyncStatus w = new StationSyncStatus(e.Msg.Src, first_QSO_ts);
                 lock (wtStationSyncList)
                 {
-                    int sl_index = wtStationSyncList.FindLastIndex(x => x.from == e.Msg.Src);
-                    if (sl_index != -1)
-                    {
-                        wtStationSyncList[sl_index].timestamp = w.timestamp;
-                        wtStationSyncList[sl_index].first_QSO_ts = w.first_QSO_ts;
-                    }
-                    else
-                    {
-                        wtStationSyncList.Add(w);
-                    }
+                    wtStationSyncList.Add(w);
                 }
             }
             else
@@ -600,8 +641,10 @@ namespace WinTest
                     else
                     {
                         wtStationSyncList.Add(w);
+                        wtSynclistChangedNotChecked = true;
                     }
                 }
+                
                 if (WtlogsyncState == WTLOGSYNCSTATE.WAIT_HELLO)
                     WtlogsyncState = WTLOGSYNCSTATE.HELLO_RECEIVED;
             }
@@ -730,12 +773,24 @@ namespace WinTest
                             int ssl_index = wtStationSyncList[sl_index].logstat.FindLastIndex(x => x.StationUniqueID == stationUniqueID);
                             if (ssl_index != -1)
                             {
-                                if (wtStationSyncList[sl_index].logstat[ssl_index] != sls)
+                                if (!sls.IsEqual(wtStationSyncList[sl_index].logstat[ssl_index]))
+                                {
+                                    Console.Write("synclist :");
+                                    wtStationSyncList[sl_index].logstat[ssl_index].ls.ForEach(l => Console.Write(l.count_from + "-" + l.count_to));
+                                    Console.Write(" neu:");
+                                    sls.ls.ForEach(l => Console.Write(l.count_from + "-" + l.count_to));
+                                    Console.WriteLine();
+
                                     wtStationSyncList[sl_index].logstat[ssl_index] = sls;
+                                    wtSynclistChangedNotChecked = true;
+                                }
+                                else
+                                    Console.WriteLine("no change");
                             }
                             else
                             {
                                 wtStationSyncList[sl_index].logstat.Add(sls);
+                                wtSynclistChangedNotChecked = true;
                             }
 
                             //                        foreach (var s in sl.logstat)
@@ -828,19 +883,8 @@ namespace WinTest
                                 row["LOGID"].ToString(),
                                 row["LOGNR"].ToString()
                         });
-
-                        if (qso != null)
-                        {
-                            if (!(qso.ItemArray.SequenceEqual(row.ItemArray)))
-                            {
-                                qso.Delete();
-                                QSO.Rows.Add(row);
-                            }
-                        }
-                        else
-                        {
-                            QSO.Rows.Add(row);
-                        }
+                        AddOrModifyQSO(qso, row);
+                        logChanged = true;
 
                         string StationUniqueID = StationName + "@" + row["LOGID"].ToString();
                         var myls = myLogState.Find(x => x.StationUniqueID.Equals(StationUniqueID));
@@ -851,26 +895,40 @@ namespace WinTest
                             if (txIDQSONumber == myls.ls.Last().count_to + 1)
                             {
                                 myls.ls.Last().count_to = txIDQSONumber;
-                                // Console.WriteLine("we have2 " + myls.StationUniqueID + ":" + myls.count_from + "-" + myls.count_to + "-" + myls.count_next + "-" + myls.count_end);
+                                //Console.Write("we have2 " + myls.StationUniqueID + ":");
+                                //myls.ls.ForEach(l => Console.Write(l.count_from + "-" + l.count_to));
+                                //Console.WriteLine();
+                                if (WtlogsyncState == WTLOGSYNCSTATE.QSO_IN_SYNC)
+                                {
+                                    Console.WriteLine("extent Log, still in sync");
+                                    return;
+                                }
                             }
                             else
                             {
                                 find_qsos_count_to(ref myls);
-                                //Console.WriteLine("we have " + myls.StationUniqueID + ":" + myls.count_from + "-" + myls.count_to + "-" + myls.count_next + "-" + myls.count_end);
+                                //Console.WriteLine("we have " + myls.StationUniqueID + ":");
+                                //myls.ls.ForEach(l => Console.Write(l.count_from + "-" + l.count_to));
+                                //Console.WriteLine();
                             }
                         }
                         else
                         {
                             logState lst = new logState(StationUniqueID, new List<logSegment>());
                             find_qsos_count_to(ref lst);
-                            //Console.WriteLine("we have now " + ls.StationUniqueID + ":" + ls.count_from + "-" + ls.count_to + "-" + ls.count_next + "-" + ls.count_end);
+                            //Console.WriteLine("we have now " + lst.StationUniqueID + ":");
+                            //lst.ls.ForEach(l => Console.Write(l.count_from + "-" + l.count_to));
+                            //Console.WriteLine();
                             myLogState.Add(lst);
                         }
+                        // we only updated myLogState - not the individual station's logState in wtStationSyncList (which gets updated through IHAVE)
+                        // so we have a bit more data then the wtStationSyncList has and comparing count_to would fail
 
                         if (needQSOsentForStationID.Equals(StationUniqueID) && (needQSOsentForCountTo == txIDQSONumber))
                         {
                             // received everything from last "NEEDQSO"
                             Debug("next needqso");
+                            needQSOsentForStationID = "";
                             ti_get_log.Stop();
                             ti_get_log.Interval = 200; // quick restart
                             ti_get_log.Start();
@@ -923,17 +981,21 @@ namespace WinTest
 
                         if (qso != null)
                         {
-                            //Console.WriteLine("was " + qso["CALL"].ToString() + " " + qso["TIME"].ToString() + " " + qso["SENT"].ToString() + " " + qso["RCVD"].ToString() + " " + qso["LOC"].ToString());
-                            qso["CALL"] = data[14];
+                            lock (QSOlock)
+                            {
+                                //Console.WriteLine("was " + qso["CALL"].ToString() + " " + qso["TIME"].ToString() + " " + qso["SENT"].ToString() + " " + qso["RCVD"].ToString() + " " + qso["LOC"].ToString());
+                                qso["CALL"] = data[14];
 
-                            DateTime ts = new DateTime(1970, 1, 1, 0, 0, 0, 0);
-                            ts = ts.AddSeconds((double)Int32.Parse(data[6]));
-                            qso["TIME"] = ts.ToString("HH:mm"); // FIXME warum nicht als object? So fehlt das Datum
-                            uint serial_sent = UInt32.Parse(data[13]);
-                            qso["SENT"] = data[15] + serial_sent.ToString("D3");
-                            qso["RCVD"] = data[16];
-                            qso["LOC"] = data[17];
-                            //Console.WriteLine("now " + qso["CALL"].ToString() + " " + qso["TIME"].ToString() + " " + qso["SENT"].ToString() + " " + qso["RCVD"].ToString() + " " + qso["LOC"].ToString());
+                                DateTime ts = new DateTime(1970, 1, 1, 0, 0, 0, 0);
+                                ts = ts.AddSeconds((double)Int32.Parse(data[6]));
+                                qso["TIME"] = ts.ToString("HH:mm"); // FIXME warum nicht als object? So fehlt das Datum
+                                uint serial_sent = UInt32.Parse(data[13]);
+                                qso["SENT"] = data[15] + serial_sent.ToString("D3");
+                                qso["RCVD"] = data[16];
+                                qso["LOC"] = data[17];
+                                //Console.WriteLine("now " + qso["CALL"].ToString() + " " + qso["TIME"].ToString() + " " + qso["SENT"].ToString() + " " + qso["RCVD"].ToString() + " " + qso["LOC"].ToString());
+                            }
+                            logChanged = true;
                         }
                     }
                     catch (Exception ex) { Error(ex.Message); }

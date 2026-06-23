@@ -12,7 +12,7 @@ namespace wtKST.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.13.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.14.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -49,7 +49,8 @@ namespace wtKST.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("www.on4kst.info")]
+        [global::System.Configuration.NoSettingsVersionUpgrade]
+        [global::System.Configuration.DefaultSettingValueAttribute("www.on4kst.org")]
         public string KST_ServerName {
             get {
                 return ((string)(this["KST_ServerName"]));
@@ -236,30 +237,6 @@ namespace wtKST.Properties {
             }
             set {
                 this["ShowBeacons"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool EnableSpots {
-            get {
-                return ((bool)(this["EnableSpots"]));
-            }
-            set {
-                this["EnableSpots"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("30")]
-        public string SpotTimeout {
-            get {
-                return ((string)(this["SpotTimeout"]));
-            }
-            set {
-                this["SpotTimeout"] = value;
             }
         }
         
@@ -553,7 +530,7 @@ namespace wtKST.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("30")]
+        [global::System.Configuration.DefaultSettingValueAttribute("1200")]
         public string KST_MaxDist {
             get {
                 return ((string)(this["KST_MaxDist"]));
@@ -637,7 +614,7 @@ namespace wtKST.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("/CQ $CALL sked 23 cm ?")]
+        [global::System.Configuration.DefaultSettingValueAttribute("/CQ $CALL Hi $NAME pse sked 23 cm ?")]
         public string KST_Macro_1 {
             get {
                 return ((string)(this["KST_Macro_1"]));
@@ -685,7 +662,7 @@ namespace wtKST.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("/CQ $CALL pse call $FREQ")]
+        [global::System.Configuration.DefaultSettingValueAttribute("/CQ $CALL Hi $NAME pse call $FREQ")]
         public string KST_Macro_5 {
             get {
                 return ((string)(this["KST_Macro_5"]));
@@ -889,7 +866,7 @@ namespace wtKST.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("wtKST")]
+        [global::System.Configuration.DefaultSettingValueAttribute("STN1")]
         public string WinTest_StationName {
             get {
                 return ((string)(this["WinTest_StationName"]));
@@ -922,79 +899,208 @@ namespace wtKST.Properties {
                 this["QARTest_Sync_active"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool DXLog_Sync_active {
+            get {
+                return ((bool)(this["DXLog_Sync_active"]));
+            }
+            set {
+                this["DXLog_Sync_active"] = value;
+            }
+        }
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool WS_Active
-        {
-            get
-            {
+        [global::System.Configuration.DefaultSettingValueAttribute("STN1")]
+        public string DXLog_StationName {
+            get {
+                return ((string)(this["DXLog_StationName"]));
+            }
+            set {
+                this["DXLog_StationName"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool WS_Active {
+            get {
                 return ((bool)(this["WS_Active"]));
             }
-            set
-            {
+            set {
                 this["WS_Active"] = value;
             }
         }
-
+        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string WS_Username
-        {
-            get
-            {
+        public string WS_Username {
+            get {
                 return ((string)(this["WS_Username"]));
             }
-            set
-            {
+            set {
                 this["WS_Username"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string WS_Password {
+            get {
+                return ((string)(this["WS_Password"]));
+            }
+            set {
+                this["WS_Password"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://www.airscout.app/page/dist/login.php?login=1")]
+        public string WS_LoginURL {
+            get {
+                return ((string)(this["WS_LoginURL"]));
+            }
+            set {
+                this["WS_LoginURL"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://www.airscout.app/airscout/api/v1")]
+        public string WS_API_URL {
+            get {
+                return ((string)(this["WS_API_URL"]));
+            }
+            set {
+                this["WS_API_URL"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AdvancedWinTestNetwork_Activate {
+            get {
+                return ((bool)(this["AdvancedWinTestNetwork_Activate"]));
+            }
+            set {
+                this["AdvancedWinTestNetwork_Activate"] = value;
+            }
+        }
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string WS_Password
-        {
-            get
-            {
-                return ((string)(this["WS_Password"]));
+        public string AdvancedWinTestNetwork_BroadcastIP {
+            get {
+                return ((string)(this["AdvancedWinTestNetwork_BroadcastIP"]));
             }
-            set
-            {
-                this["WS_Password"] = value;
+            set {
+                this["AdvancedWinTestNetwork_BroadcastIP"] = value;
             }
         }
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://www.airscout.app/page/dist/login.php?login=1")]
-        public string WS_LoginURL
-        {
-            get
-            {
-                return ((string)(this["WS_LoginURL"]));
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string AdvancedWinTestNetwork_UDPPort {
+            get {
+                return ((string)(this["AdvancedWinTestNetwork_UDPPort"]));
             }
-            set
-            {
-                this["WS_LoginURL"] = value;
+            set {
+                this["AdvancedWinTestNetwork_UDPPort"] = value;
             }
         }
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://www.airscout.app/airscout/api/v1")]
-        public string WS_API_URL
-        {
-            get
-            {
-                return ((string)(this["WS_API_URL"]));
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ADIF_CurrContest_Active {
+            get {
+                return ((bool)(this["ADIF_CurrContest_Active"]));
             }
-            set
-            {
-                this["WS_API_URL"] = value;
+            set {
+                this["ADIF_CurrContest_Active"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ADIF_CurrContest_FileName {
+            get {
+                return ((string)(this["ADIF_CurrContest_FileName"]));
+            }
+            set {
+                this["ADIF_CurrContest_FileName"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ADIF_PrevContest_FileName {
+            get {
+                return ((string)(this["ADIF_PrevContest_FileName"]));
+            }
+            set {
+                this["ADIF_PrevContest_FileName"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool N1MM_Activate {
+            get {
+                return ((bool)(this["N1MM_Activate"]));
+            }
+            set {
+                this["N1MM_Activate"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string N1MM_DB_FileName {
+            get {
+                return ((string)(this["N1MM_DB_FileName"]));
+            }
+            set {
+                this["N1MM_DB_FileName"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
+        public int N1MM_UpdateInterval {
+            get {
+                return ((int)(this["N1MM_UpdateInterval"]));
+            }
+            set {
+                this["N1MM_UpdateInterval"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-1")]
+        public int N1MM_ContestNR {
+            get {
+                return ((int)(this["N1MM_ContestNR"]));
+            }
+            set {
+                this["N1MM_ContestNR"] = value;
             }
         }
 

@@ -502,7 +502,6 @@ namespace wtKST
             try
             {
                 MainDlg.Log.WriteMessage("KST user: " + s);
-                DataRow Row = MSG.NewRow();
                 //UA0|3|DF9QX|Matthias 23-1,2|JO42HD|1| -> away
                 //UA0|3|DL7QY|Claus 1-122GHz|JN59BD|0|
                 //UA0|3|DL8AAU|Alexander|JO41VL|2| -> new
@@ -559,7 +558,7 @@ namespace wtKST
                             }
                             else
                             {
-                                MainDlg.Log.WriteMessage("KST user UA: " + s + "not valid");
+                                MainDlg.Log.WriteMessage("KST user UA: " + s + "not valid - ignored");
                             }
                         }
                         break;
@@ -608,9 +607,9 @@ namespace wtKST
                                 {
                                     row["AWAY"] = (usr_state & 1) == 1;
                                     row["RECENTLOGIN"] = (usr_state & 2) == 2;
+                                    if (process_user_update != null)
+                                        process_user_update(this, new UserUpdateEventArgs(row, USER_OP.USER_MODIFY_STATE));
                                 }
-                                if (process_user_update != null)
-                                    process_user_update(this, new UserUpdateEventArgs(row, USER_OP.USER_MODIFY_STATE));
                             }
                         }
                         break;
@@ -630,12 +629,12 @@ namespace wtKST
                                     // make a copy
                                     var row_delete = USER.NewRow();
                                     row_delete.ItemArray = row.ItemArray.Clone() as object[];
+                                    // now delete the original one
+                                    row.Delete();
 
                                     if (process_user_update != null)
                                         process_user_update(this, new UserUpdateEventArgs(row_delete, USER_OP.USER_DELETE));
                                 }
-
-                                row.Delete();
                             }
                         }
                         break;
@@ -759,7 +758,9 @@ namespace wtKST
         {
             if (State >= KST_STATE.Connected)
             {
+#if !DEBUG_INJECT_KST
                 tw.Send("/q\r");
+#endif
                 Say("Disconnected from KST chat...");
                 State = KST_STATE.Disconnecting;
             }
