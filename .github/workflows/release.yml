@@ -127,6 +127,12 @@ jobs:
       - name: Prepare installer project
         shell: pwsh
         run: |
+          foreach ($vsVersion in @('17.0', '18.0')) {
+            $msbuildKey = "HKCU:\Software\Microsoft\VisualStudio\$($vsVersion)_Config\MSBuild"
+            New-Item -Path $msbuildKey -Force | Out-Null
+            New-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild -Value 1 -PropertyType DWORD -Force | Out-Null
+          }
+
           if (!(Test-Path qrv.xml)) {
             '<DocumentElement />' | Set-Content qrv.xml -NoNewline
           }
