@@ -11,11 +11,12 @@ permissions:
 
 jobs:
   build-release:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     env:
       CONFIGURATION: Release
       PLATFORM: x86
+      VS_VERSION_RANGE: "[17.0,18.0)"
 
     steps:
       - name: Checkout
@@ -23,6 +24,8 @@ jobs:
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: ${{ env.VS_VERSION_RANGE }}
 
       - name: Resolve release version
         id: version
@@ -87,9 +90,9 @@ jobs:
             throw "Could not find vswhere.exe."
           }
 
-          $vsInstall = & $vswhere -latest -products * -property installationPath
+          $vsInstall = & $vswhere -latest -products * -version "${{ env.VS_VERSION_RANGE }}" -property installationPath
           if ([string]::IsNullOrWhiteSpace($vsInstall) -or !(Test-Path $vsInstall)) {
-            throw "Could not find a Visual Studio installation."
+            throw "Could not find a Visual Studio 2022 installation."
           }
 
           $vstest = Get-ChildItem -Path $vsInstall -Filter vstest.console.exe -Recurse -ErrorAction SilentlyContinue |
@@ -112,9 +115,9 @@ jobs:
             throw "Could not find vswhere.exe."
           }
 
-          $vsInstall = & $vswhere -latest -products * -property installationPath
+          $vsInstall = & $vswhere -latest -products * -version "${{ env.VS_VERSION_RANGE }}" -property installationPath
           if ([string]::IsNullOrWhiteSpace($vsInstall) -or !(Test-Path $vsInstall)) {
-            throw "Could not find a Visual Studio installation."
+            throw "Could not find a Visual Studio 2022 installation."
           }
 
           $installer = Join-Path $vsInstall 'Common7\IDE\VSIXInstaller.exe'
@@ -127,18 +130,25 @@ jobs:
       - name: Prepare installer project
         shell: pwsh
         run: |
-          foreach ($vsVersion in @('17.0', '18.0')) {
-            $msbuildKey = "HKCU:\Software\Microsoft\VisualStudio\$($vsVersion)_Config\MSBuild"
-            New-Item -Path $msbuildKey -Force | Out-Null
-            New-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild -Value 1 -PropertyType DWORD -Force | Out-Null
-          }
-
           if (!(Test-Path qrv.xml)) {
             '<DocumentElement />' | Set-Content qrv.xml -NoNewline
           }
 
-          $solutionPath = Join-Path $PWD 'wtKST.sln'
-          $solution = Get-Content $solutionPath -Raw
+          $vsRoots = @(
+            'HKCU:\Software\Microsoft\VisualStudio\17.0',
+            'HKCU:\Software\Microsoft\VisualStudio\17.0_Config'
+          )
+          foreach ($vsRoot in $vsRoots) {
+            $msbuildKey = Join-Path $vsRoot 'MSBuild'
+            New-Item -Path $msbuildKey -Force | Out-Null
+            New-ItemProperty -Path $msbuildKey -Name DisableOutOfProcBuild -Value 1 -PropertyType DWORD -Force | Out-Null
+          }
+
+          $sourceSolutionPath = Join-Path $PWD 'wtKST.sln'
+          $solutionPath = Join-Path $PWD 'InstallerBuild.sln'
+          $solution = Get-Content $sourceSolutionPath -Raw
+          $solution = $solution -replace '(?ms)^Project\("\{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC\}"\) = "kstTest", "kstTest\\kstTest\.csproj", "\{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9\}"\r?\nEndProject\r?\n', ''
+          $solution = $solution -replace '(?m)^\s*\{D4773D99-A3C2-4B9A-AD43-C2B7DE6326B9\}\.[^\r\n]*\r?\n', ''
           if ($solution -notmatch [regex]::Escape('Setup\Setup.vdproj')) {
             $setupTypeGuid = '{54435603-DBB4-11D2-8724-00A0C9A8B90C}'
             $setupProjectGuid = '{3F19D8B5-8E05-4BC0-84B7-3D9A0A14C3D2}'
@@ -162,6 +172,9 @@ jobs:
             $solution = $solution -replace '(?m)^(\s*EndGlobalSection\s*\r?\n\s*GlobalSection\(SolutionProperties\))', ($setupConfigs + "`r`n`$1")
             Set-Content $solutionPath $solution -NoNewline
           }
+          else {
+            Set-Content $solutionPath $solution -NoNewline
+          }
 
       - name: Build MSI installer
         shell: pwsh
@@ -171,9 +184,9 @@ jobs:
             throw "Could not find vswhere.exe."
           }
 
-          $vsInstall = & $vswhere -latest -products * -property installationPath
+          $vsInstall = & $vswhere -latest -products * -version "${{ env.VS_VERSION_RANGE }}" -property installationPath
           if ([string]::IsNullOrWhiteSpace($vsInstall) -or !(Test-Path $vsInstall)) {
-            throw "Could not find a Visual Studio installation."
+            throw "Could not find a Visual Studio 2022 installation."
           }
 
           $devenv = Join-Path $vsInstall 'Common7\IDE\devenv.com'
@@ -185,7 +198,7 @@ jobs:
             throw "Could not find devenv.com under '$vsInstall'."
           }
 
-          & $devenv wtKST.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup" /ProjectConfig "${{ env.CONFIGURATION }}"
+          & $devenv InstallerBuild.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup" /ProjectConfig "${{ env.CONFIGURATION }}"
 
       - name: Stage artifacts
         id: artifacts
