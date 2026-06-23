@@ -81,7 +81,7 @@ jobs:
 
       - name: Run tests
         shell: pwsh
-        run: dotnet test kstTest\kstTest.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform="Any CPU" --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test kstTest\kstTest.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=AnyCPU --logger "trx;LogFileName=test-results.trx"
 
       - name: Enable Visual Studio Installer Projects
         shell: pwsh
