@@ -160,7 +160,7 @@ jobs:
             throw "Could not find devenv.com under '$vsInstall'."
           }
 
-          & $devenv wtKST.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup" /ProjectConfig "${{ env.CONFIGURATION }}"
+          & $devenv wtKST.sln /Build "${{ env.CONFIGURATION }}|${{ env.PLATFORM }}" /Project "wtKST Setup"
 
       - name: Stage artifacts
         id: artifacts
