@@ -81,7 +81,24 @@ jobs:
 
       - name: Run tests
         shell: pwsh
-        run: dotnet vstest kstTest\bin\Release\net48\kstTest.exe --Platform x86 --logger "trx;LogFileName=test-results.trx"
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (!(Test-Path $vswhere)) {
+            throw "Could not find vswhere.exe."
+          }
+
+          $vsInstall = & $vswhere -latest -products * -property installationPath
+          if ([string]::IsNullOrWhiteSpace($vsInstall) -or !(Test-Path $vsInstall)) {
+            throw "Could not find a Visual Studio installation."
+          }
+
+          $vstest = Get-ChildItem -Path $vsInstall -Filter vstest.console.exe -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName -First 1
+          if ([string]::IsNullOrWhiteSpace($vstest) -or !(Test-Path $vstest)) {
+            throw "Could not find vstest.console.exe under '$vsInstall'."
+          }
+
+          & $vstest kstTest\bin\Release\net48\kstTest.exe /Platform:x86 /Logger:"trx;LogFileName=test-results.trx"
 
       - name: Enable Visual Studio Installer Projects
         shell: pwsh
