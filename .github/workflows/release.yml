@@ -127,15 +127,23 @@ jobs:
       - name: Build MSI installer
         shell: pwsh
         run: |
-          $devenv = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.com"
-          if (!(Test-Path $devenv)) {
-            $devenv = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.com"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (!(Test-Path $vswhere)) {
+            throw "Could not find vswhere.exe."
           }
-          if (!(Test-Path $devenv)) {
-            $devenv = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com"
+
+          $vsInstall = & $vswhere -latest -products * -property installationPath
+          if ([string]::IsNullOrWhiteSpace($vsInstall) -or !(Test-Path $vsInstall)) {
+            throw "Could not find a Visual Studio installation."
           }
+
+          $devenv = Join-Path $vsInstall 'Common7\IDE\devenv.com'
           if (!(Test-Path $devenv)) {
-            throw "Could not find devenv.com."
+            $devenv = Get-ChildItem -Path $vsInstall -Filter devenv.com -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName -First 1
+          }
+          if ([string]::IsNullOrWhiteSpace($devenv) -or !(Test-Path $devenv)) {
+            throw "Could not find devenv.com under '$vsInstall'."
           }
 
           & $devenv Setup\Setup.vdproj /Build "${{ env.CONFIGURATION }}"
