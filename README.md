@@ -1,77 +1,77 @@
-# Hot-Fix...
-
-Sylvain made a change to the server, so URL www.on4kst.info currently does not work.
- 
-Hotfix:
-In Windows Explorer %localappdata%\wtKST<br>
-
-There should be at least one folder wtKST.exe_Url_xxxxxxx (xxxx being cryptic strings)<br>
-
-Inside is a folder with the wtKST version (e.g. 3.2.1.5) and there you will find the text file "user.config".<br>
-
-Open it with a text editor and correct the URL:<br>
-<code>`<setting name="KST_ServerName" serializeAs="String">`<br>
-      `    <value>www.on4kst.org</value>`<br>
-      `</setting>`<br></code>
-            
-Alternatively, you can use the new version https://github.com/dl8aau/wtkst/releases/tag/v3.2.1.7.
-
 # wtKST
 
-This software implements a client for the [ON4KST](http://www.on4kst.com/chat/start.php) chat. It is optimized for efficient sked management during
-VHF/UHF/SHF contests. It interfaces to Win-Test contest logging software and recently started to implement other
- logging software (e.g. QARTest).
+This repository is a fork of wtKST, originally written by Frank Schmahling DL2ALF for the DL0GTH team and later maintained at https://github.com/dl8aau/wtkst.
 
- The software has been written originally by Frank Schmähling DL2ALF (https://github.com/dl2alf) for his team DL0GTH.
+wtKST is a Windows client for the [ON4KST](http://www.on4kst.com/chat/start.php) chat, optimized for VHF/UHF/SHF contest sked management. It can combine ON4KST chat information with contest log data, AirScout information, and local QRV state to make active stations easier to find and prioritize.
 
+This version is licensed under the GPL v3 or later. See [LICENSE](LICENSE) for details.
 
-This version is licensed under the GPL (v3 or later).
-See the file LICENSE for details.
+## Features
 
-# Features
+* Connects to ON4KST chat using the port 23001 feed.
+* Supports the available ON4KST chat rooms.
+* Filters messages addressed to or from your station.
+* Filters displayed users by distance, here/away state, and whether they are already in the log.
+* Sorts users alphabetically or by antenna direction.
+* Shows likely QRV band information from chat names and AirScout/station data.
+* Supports airplane scatter status through [AirScout](http://airscout.eu/index.php).
+* Supports Win-Test v4 file and network based log integration.
+* Supports QARTest log integration.
+* Supports N1MM Logger+ database and live UDP integration.
+* Supports ADIF log files.
+* Can create skeds in Win-Test.
 
-* Connects to ON4KST chat using the proprietary feed on port 23001
-* Supports to connect to one of the available chats
-* Filter messages addressed to/from me
-* Filter displayed users by distance to station, here/away status and additionally if already in the log
-* Sort users alphabetically or by antenna direction
-* Display information if a user is QRV probably on a band (based on Chat name or Airscout database) 
-* Support Airplane Scatter status through [Airscout](http://airscout.eu/index.php)
-* Supported log (as of now): 
-    * [Win-Test v4](http://www.win-test.com/) file and network based
-    * [QARTest](https://www.ik3qar.it/software/qartest/en/)
-    * [N1MMLogger+](https://n1mmwp.hamdocs.com/) file based
-* Make skeds in the Win-Test logging software
+## N1MM Logger+ Support
 
-# Settings
+N1MM Logger+ support has two modes:
 
-In order to set N1MMLogger+ as logging, you need to select the s3db file used by N1MM. Usually found in C:\Users\\..username..\Documents\N1MM Logger+\Databases. Usually ham.s3db is the default used one. Then click Load and it will show the contests available in the database. Pick the latest one.
+* **DB only** reads an N1MM `.s3db` database on a refresh interval.
+* **DB + Live UDP** reads the same database and also listens for N1MM `contactinfo` UDP packets on port `12060`.
 
-# Installation
+To configure DB mode:
 
-To install use [this release page](https://github.com/dl8aau/wtkst/releases)
+1. Open the wtKST options dialog.
+2. In the N1MM Logger+ section, select the N1MM database file.
+   The usual location is:
+   `C:\Users\<username>\Documents\N1MM Logger+\Databases`
+3. Click **Load** to list contests in the database.
+4. Select the active contest.
+5. Choose either **DB only** or **DB + Live UDP**.
 
-Currently there is no installer. Unzip the archive to a convenient folder and launch
-wtkst.exe from there.
+For live UDP updates, configure N1MM Logger+ to send `contactinfo` packets to UDP port `12060`.
 
+For a single-machine setup, `127.0.0.1:12060` is sufficient. For a networked multi-station setup, send to the subnet broadcast address, for example `192.168.1.255:12060` on a `/24` network. wtKST listens on all local interfaces, so it can receive broadcast packets if Windows Firewall allows inbound UDP traffic on port `12060`.
 
-# Logging
+In N1MM+ network mode, each station should also store networked contacts in its local database. That means DB polling can recover the current status after wtKST is restarted, while live UDP provides faster updates while wtKST is running.
 
-wtKST logs to %localappdata%\wtKST\wtKST\wtKST_dd.mm.yyyy.log .
+## Installation
 
-Further some debugging information is send through the console output, but currently only
-visibule in Visual Studio.
-# Bug reports, feedback etc
+Releases are published from this fork at:
 
-Please use the [github issues page](https://github.com/dl8aau/wtkst/issues) to report any problems.
-Or you can [email me](mailto:a.kurpiers@gmail.com).
+https://github.com/m0vse/wtkst/releases
 
-# Future plans
+Tagged releases build an MSI installer and a portable ZIP. Use the MSI for a normal Windows installation, or extract the portable ZIP and run `wtKST.exe`.
 
+## Logging
 
-# Building from source
+wtKST writes log files under:
 
-You will need Visual Studio Community Edition (2019 or 2022). Load the wtKST.sln and build.
+`%localappdata%\wtKST\wtKST`
 
-ScoutBase DLLs are currently build in Airscout tree and copied. We could reference them here, too,
-but then one would need to checkout Airscout sources, too.
+The log file name uses the form:
+
+`wtKST_dd.mm.yyyy.log`
+
+## Bug Reports And Feedback
+
+Please report issues for this fork at:
+
+https://github.com/m0vse/wtkst/issues
+
+## Building From Source
+
+Build with Visual Studio 2022 on Windows.
+
+Load `wtKST.sln` and build the `Release|x86` configuration. The installer project uses the Visual Studio Installer Projects extension.
+
+ScoutBase DLLs are currently included as external binaries. They are built from the AirScout tree upstream.
