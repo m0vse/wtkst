@@ -1971,6 +1971,51 @@ namespace wtKST
             }
         }
 
+        private const double CallRowFadeMinutes = 120.0;
+        private const double InactiveCallRowOpacity = 0.25;
+
+        private double GetCallRowOpacity(DataGridViewRow row)
+        {
+            object timeval = row.Cells["TIME"].Value;
+            if (timeval == null || timeval == DBNull.Value)
+                return InactiveCallRowOpacity;
+
+            DateTime lastActivity = (DateTime)timeval;
+            if (lastActivity == DateTime.MinValue)
+                return InactiveCallRowOpacity;
+
+            double lastActivityMinutes = DateTime.UtcNow.Subtract(lastActivity).TotalMinutes;
+            if (lastActivityMinutes <= 0)
+                return 1.0;
+            if (lastActivityMinutes >= CallRowFadeMinutes)
+                return InactiveCallRowOpacity;
+
+            double fadeRatio = lastActivityMinutes / CallRowFadeMinutes;
+            return 1.0 - ((1.0 - InactiveCallRowOpacity) * fadeRatio);
+        }
+
+        private void ApplyCallRowOpacity(DataGridViewCellPaintingEventArgs e, DataGridViewRow row)
+        {
+            double opacity = GetCallRowOpacity(row);
+            if (opacity >= 0.995)
+                return;
+
+            int alpha = Math.Max(0, Math.Min(255, (int)Math.Round(255.0 * (1.0 - opacity))));
+            Rectangle r = Rectangle.FromLTRB(e.CellBounds.Left, e.CellBounds.Top, e.CellBounds.Right - 1, e.CellBounds.Bottom - 1);
+            using (Brush fadeBrush = new SolidBrush(Color.FromArgb(alpha, e.CellStyle.BackColor)))
+            {
+                e.Graphics.FillRectangle(fadeBrush, r);
+            }
+        }
+
+        private void PaintCallRowTextCell(DataGridViewCellPaintingEventArgs e, DataGridViewRow row, string text, Font font, Color foreColor, TextFormatFlags flags)
+        {
+            lv_Calls_ClearBackground(e);
+            TextRenderer.DrawText(e.Graphics, text, font, e.CellBounds, foreColor, flags);
+            ApplyCallRowOpacity(e, row);
+            e.Handled = true;
+        }
+
         private void lv_Calls_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.ColumnIndex < 0)
@@ -2037,51 +2082,58 @@ namespace wtKST
             }
             else
             {
+                var row = dgv.Rows[e.RowIndex];
                 if (e.ColumnIndex == dgv.Columns["CALL"].DisplayIndex && e.Value != null)
                 {
                     string call = e.Value.ToString();
-                    if (bool.TryParse(dgv.Rows[e.RowIndex].Cells["AWAY"].Value.ToString(), out bool away) && away == true)
+                    if (bool.TryParse(row.Cells["AWAY"].Value.ToString(), out bool away) && away == true)
                     {
                         call = "(" + call + ")";
                         // Italic is too difficult to read and the font gets bigger
                         //LV.Font = new Font(LV.Font, FontStyle.Italic);
                     }
-                    lv_Calls_ClearBackground(e);
 
-                    if (bool.TryParse(dgv.Rows[e.RowIndex].Cells["RECENTLOGIN"].Value.ToString(), out bool recentlogin) && recentlogin == true)
+                    if (bool.TryParse(row.Cells["RECENTLOGIN"].Value.ToString(), out bool recentlogin) && recentlogin == true)
                     {
                         using (var font = new Font(e.CellStyle.Font, FontStyle.Bold))
                         {
-                            TextRenderer.DrawText(e.Graphics, call,
-                                             font, e.CellBounds, e.CellStyle.ForeColor,
-                                             TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
+                            PaintCallRowTextCell(e, row, call, font, e.CellStyle.ForeColor,
+                                TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
                         }
                     }
                     else
-                        TextRenderer.DrawText(e.Graphics, call,
-                                         e.CellStyle.Font, e.CellBounds, e.CellStyle.ForeColor,
-                                         TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
-
-                    e.Handled = true;
+                    {
+                        PaintCallRowTextCell(e, row, call, e.CellStyle.Font, e.CellStyle.ForeColor,
+                            TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
+                    }
+                }
+                else if (e.ColumnIndex == dgv.Columns["NAME"].DisplayIndex && e.Value != null)
+                {
+                    PaintCallRowTextCell(e, row, e.Value.ToString(), e.CellStyle.Font, e.CellStyle.ForeColor,
+                        TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
                 }
                 else if (e.ColumnIndex == dgv.Columns["LOC"].DisplayIndex && e.Value != null)
                 {
                     int locatorMismatch = LocatorMismatchNone;
-                    object locatorMismatchValue = dgv.Rows[e.RowIndex].Cells["LOCMISMATCH"].Value;
+                    object locatorMismatchValue = row.Cells["LOCMISMATCH"].Value;
                     if (locatorMismatchValue != null && locatorMismatchValue != DBNull.Value)
                     {
                         int.TryParse(locatorMismatchValue.ToString(), out locatorMismatch);
                     }
 
-                    if (locatorMismatch != LocatorMismatchNone)
-                    {
-                        Color foreColor = locatorMismatch == LocatorMismatchOnly ? Color.Red : Color.DarkOrange;
-                        lv_Calls_ClearBackground(e);
-                        TextRenderer.DrawText(e.Graphics, e.Value.ToString(),
-                                         e.CellStyle.Font, e.CellBounds, foreColor,
-                                         TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
-                        e.Handled = true;
-                    }
+                    Color foreColor = e.CellStyle.ForeColor;
+                    if (locatorMismatch == LocatorMismatchOnly)
+                        foreColor = Color.Red;
+                    else if (locatorMismatch == LocatorMismatchMixed)
+                        foreColor = Color.DarkOrange;
+
+                    PaintCallRowTextCell(e, row, e.Value.ToString(), e.CellStyle.Font, foreColor,
+                        TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
+                }
+                else if (e.ColumnIndex == dgv.Columns["QRB"].DisplayIndex && e.Value != null)
+                {
+                    PaintCallRowTextCell(e, row, e.Value.ToString(), e.CellStyle.Font, e.CellStyle.ForeColor,
+                        TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.Right);
                 }
                 else if (e.ColumnIndex > dgv.Columns["AS"].DisplayIndex)
                 {
@@ -2141,12 +2193,12 @@ namespace wtKST
                         e.Graphics.FillEllipse(Brushes.Green, dotX, dotY, dotSize, dotSize);
                         e.Handled = true;
                     }
+                    ApplyCallRowOpacity(e, row);
                 }
                 else if (e.ColumnIndex == dgv.Columns["CONTACTED"].DisplayIndex)
                 {
 
                     // last activity
-                    var row = dgv.Rows[e.RowIndex];
                     var timeval = row.Cells["TIME"].Value;
                     lv_Calls_ClearBackground(e);
 
@@ -2171,13 +2223,13 @@ namespace wtKST
                         e.Graphics.DrawString(act_string, e.CellStyle.Font, Brushes.Black, e.CellBounds.X + e.CellBounds.Width / 2,
                             e.CellBounds.Y + e.CellBounds.Height / 2, sf);
                     }
+                    ApplyCallRowOpacity(e, row);
                     e.Handled = true;
                 }
                 else if (e.ColumnIndex == dgv.Columns["AS"].DisplayIndex)
                 {
                     try
                     {
-                        var row = dgv.Rows[e.RowIndex];
                         if (row.Cells["AS"].Value == null)
                             return;
                         string as_string = e.Value.ToString();
@@ -2206,6 +2258,7 @@ namespace wtKST
                                 var cat = a[1];
                                 paintAScell(pot, cat, Mins, e.CellBounds, e.Graphics);
                             }
+                            ApplyCallRowOpacity(e, row);
                             e.Handled = true;
                         }
                     }
