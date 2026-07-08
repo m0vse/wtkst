@@ -146,7 +146,9 @@ namespace wtKST
 
         private System.Windows.Forms.Timer ti_UpdateFilter;
 
-        private bool WinTestLocatorWarning = false;
+        private const int LocatorMismatchNone = 0;
+        private const int LocatorMismatchMixed = 1;
+        private const int LocatorMismatchOnly = 2;
         private bool hide_away = false;
         private bool sort_by_dir = false;
         private bool sort_by_qrb = false;
@@ -235,6 +237,7 @@ namespace wtKST
             CALL.Columns.Add("AS");
             foreach (string band in BANDS)
                 CALL.Columns.Add(band, typeof(int));
+            CALL.Columns.Add("LOCMISMATCH", typeof(int));
             CALL.Columns.Add("COLOR", typeof(int));
             DataColumn[] CALLkeys = new DataColumn[]
             {
@@ -264,6 +267,7 @@ namespace wtKST
             lv_Calls.Columns["QRB"].Width = 45;
             lv_Calls.Columns["DIR"].Visible = false;
             lv_Calls.Columns["AWAY"].Visible = false;
+            lv_Calls.Columns["LOCMISMATCH"].Visible = false;
             lv_Calls.Columns["COLOR"].Visible = false;
             lv_Calls.Columns["50M"].Width = 20;
             lv_Calls.Columns["70M"].Width = 20;
@@ -1452,6 +1456,23 @@ namespace wtKST
 
         private bool wtQSO_local_lock = false;
 
+        private string CurrentLogDisplayName()
+        {
+            if (wtQSO == null)
+                return "Log";
+            if (wtQSO.GetType() == typeof(N1MMSQLiteLog) || wtQSO.GetType() == typeof(N1MMLiveSQLiteLog))
+                return "N1MM+";
+            if (wtQSO.GetType() == typeof(WinTest.WinTestLog) || wtQSO.GetType() == typeof(WinTest.WtLogSync))
+                return "Win-Test";
+            if (wtQSO.GetType() == typeof(DXLogSync))
+                return "DXLog";
+            if (wtQSO.GetType() == typeof(QARTestLogSync))
+                return "QARTest";
+            if (wtQSO.GetType() == typeof(ADIFContestLog))
+                return "ADIF";
+            return "Log";
+        }
+
         private void Check_QSO(DataRow call_row)
         {
             string call = call_row["CALL"].ToString();
@@ -1463,6 +1484,9 @@ namespace wtKST
             string wcall = WCCheck.WCCheck.Cut(call);
             string findCall = string.Format("[CALL] LIKE '*{0}*'", wcall);
             bool[] found = new bool[BANDS.Length]; // defaults to false
+            bool foundMatchingLocator = false;
+            bool foundMismatchedLocator = false;
+            string advertisedLocator = call_row["LOC"].ToString().Trim();
 
             if (wtQSO_local_lock)
             {
@@ -1483,14 +1507,28 @@ namespace wtKST
 
                     found[Array.IndexOf(BANDS, band)] = true;
                     // check locator
-                    if (call_row["LOC"].ToString() != qso_row["LOC"].ToString())
+                    string loggedLocator = qso_row["LOC"].ToString().Trim();
+                    if (advertisedLocator.Equals(loggedLocator, StringComparison.OrdinalIgnoreCase))
                     {
-                        // Say(call + " Locator wrong? Win-Test Log " + band + " " + qso_row["TIME"] + " " + call + " " + qso_row["LOC"] + " KST " + call_row["LOC"].ToString());
+                        foundMatchingLocator = true;
+                    }
+                    else
+                    {
+                        foundMismatchedLocator = true;
+                        string logName = CurrentLogDisplayName();
+                        // Say(call + " Locator wrong? " + logName + " Log " + band + " " + qso_row["TIME"] + " " + call + " " + qso_row["LOC"] + " KST " + call_row["LOC"].ToString());
 
-                        WinTestLocatorWarning = true;
-                        Log.WriteMessage("Win-Test log locator mismatch: " + qso_row["BAND"] + " " + qso_row["TIME"] + " " + call + " Locator wrong? Win-Test Log " + qso_row["LOC"] + " KST " + call_row["LOC"].ToString());
+                        Log.WriteMessage(logName + " log locator mismatch: " + qso_row["BAND"] + " " + qso_row["TIME"] + " " + call + " Locator wrong? " + logName + " Log " + qso_row["LOC"] + " KST " + call_row["LOC"].ToString());
                     }
                 }
+            }
+            if (foundMismatchedLocator)
+            {
+                call_row["LOCMISMATCH"] = foundMatchingLocator ? LocatorMismatchMixed : LocatorMismatchOnly;
+            }
+            else
+            {
+                call_row["LOCMISMATCH"] = LocatorMismatchNone;
             }
             wtQSO_local_lock = false;
             // important: I cannot know if a call is *not* in the log until I scanned the log fully, so this code to clean entries that are wrongly marked as "worked" has to be done
@@ -1508,7 +1546,6 @@ namespace wtKST
 
         private void Check_QSOs()
         {
-            WinTestLocatorWarning = false;
             try
             {
                 lock (CALL)
@@ -1572,7 +1609,8 @@ namespace wtKST
                                     wtQSO.Get_QSOs(Settings.Default.ADIF_CurrContest_FileName);
                                 if (!String.IsNullOrEmpty(wtQSO.MyLoc) && WCCheck.WCCheck.IsLoc(wtQSO.MyLoc) > 0 && !wtQSO.MyLoc.Equals(Settings.Default.KST_Loc))
                                 {
-                                    MessageBox.Show("KST locator " + Settings.Default.KST_Loc + " does not match locator in Win-Test " + wtQSO.MyLoc + " !!!", "Win-Test Log",
+                                    string logName = CurrentLogDisplayName();
+                                    MessageBox.Show("KST locator " + Settings.Default.KST_Loc + " does not match locator in " + logName + " " + wtQSO.MyLoc + " !!!", logName + " Log",
                                                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 }
                                 wtQSO_local_lock = false;
@@ -2025,6 +2063,25 @@ namespace wtKST
                                          TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
 
                     e.Handled = true;
+                }
+                else if (e.ColumnIndex == dgv.Columns["LOC"].DisplayIndex && e.Value != null)
+                {
+                    int locatorMismatch = LocatorMismatchNone;
+                    object locatorMismatchValue = dgv.Rows[e.RowIndex].Cells["LOCMISMATCH"].Value;
+                    if (locatorMismatchValue != null && locatorMismatchValue != DBNull.Value)
+                    {
+                        int.TryParse(locatorMismatchValue.ToString(), out locatorMismatch);
+                    }
+
+                    if (locatorMismatch != LocatorMismatchNone)
+                    {
+                        Color foreColor = locatorMismatch == LocatorMismatchOnly ? Color.Red : Color.DarkOrange;
+                        lv_Calls_ClearBackground(e);
+                        TextRenderer.DrawText(e.Graphics, e.Value.ToString(),
+                                         e.CellStyle.Font, e.CellBounds, foreColor,
+                                         TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
+                        e.Handled = true;
+                    }
                 }
                 else if (e.ColumnIndex > dgv.Columns["AS"].DisplayIndex)
                 {
