@@ -14,6 +14,7 @@ using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
@@ -84,6 +85,82 @@ namespace wtKST
         private bool SendMyLocator = false;
 
         private bool CheckStartUpAway = true;
+
+        private static bool IsTransientConnectionException(Exception e)
+        {
+            while (e != null)
+            {
+                SocketException socketException = e as SocketException;
+                if (socketException != null)
+                {
+                    switch (socketException.SocketErrorCode)
+                    {
+                        case SocketError.HostNotFound:
+                        case SocketError.NoData:
+                        case SocketError.TryAgain:
+                        case SocketError.NetworkDown:
+                        case SocketError.NetworkUnreachable:
+                        case SocketError.HostDown:
+                        case SocketError.HostUnreachable:
+                        case SocketError.TimedOut:
+                        case SocketError.ConnectionRefused:
+                        case SocketError.ConnectionReset:
+                        case SocketError.ConnectionAborted:
+                            return true;
+                    }
+                }
+
+                e = e.InnerException;
+            }
+
+            return false;
+        }
+
+        private void ClearConnectionState()
+        {
+            lock (MsgQueue)
+            {
+                MsgQueue.Clear();
+            }
+            lock (MSG)
+            {
+                MSG.Clear();
+            }
+            initialMessagesReceived = false;
+            MsgRows.Clear();
+            KSTBuffer = "";
+        }
+
+        private void CloseTelnet(TelnetWrapper wrapper)
+        {
+            if (wrapper == null)
+            {
+                return;
+            }
+
+            try
+            {
+                wrapper.DataAvailable -= tw_DataAvailable;
+                wrapper.Disconnected -= tw_Disconnected;
+                wrapper.Close();
+            }
+            catch
+            {
+            }
+
+            if (ReferenceEquals(tw, wrapper))
+            {
+                tw = null;
+            }
+        }
+
+        private void HandleTransientConnectionFailure(TelnetWrapper wrapper)
+        {
+            MainDlg.Log.WriteMessage("KST connection unavailable; will retry.");
+            CloseTelnet(wrapper);
+            ClearConnectionState();
+            State = KST_STATE.Disconnected;
+        }
 #if DEBUG_INJECT_KST
         private System.Timers.Timer ti_debug;
 #endif
@@ -727,18 +804,19 @@ namespace wtKST
                 !string.IsNullOrEmpty(Settings.Default.KST_ServerName) &&
                 !string.IsNullOrEmpty(Settings.Default.KST_UserName))
             {
-                tw = new TelnetWrapper();
-                tw.DataAvailable += new DataAvailableEventHandler(tw_DataAvailable);
-                tw.Disconnected += new DisconnectedEventHandler(tw_Disconnected);
+                TelnetWrapper newTelnet = new TelnetWrapper();
+                tw = newTelnet;
+                newTelnet.DataAvailable += new DataAvailableEventHandler(tw_DataAvailable);
+                newTelnet.Disconnected += new DisconnectedEventHandler(tw_Disconnected);
                 try
                 {
-                    tw.Connect(Settings.Default.KST_ServerName, 23001);
-                    if (!tw.Connected)
+                    newTelnet.Connect(Settings.Default.KST_ServerName, 23001);
+                    if (!newTelnet.Connected)
                     {
-                        Say("Connection failed...");
+                        HandleTransientConnectionFailure(newTelnet);
                         return;
                     }
-                    tw.Receive();
+                    newTelnet.Receive();
                     State = KST_STATE.WaitLogin;
                     lock (USER)
                     {
@@ -748,6 +826,12 @@ namespace wtKST
                 }
                 catch (Exception e)
                 {
+                    if (IsTransientConnectionException(e))
+                    {
+                        HandleTransientConnectionFailure(newTelnet);
+                        return;
+                    }
+
                     Error(MethodBase.GetCurrentMethod().Name, e.Message);
                     throw;
                 }
@@ -921,16 +1005,15 @@ namespace wtKST
                 MainDlg.Log.WriteMessage("Socket Error - " + e.Message);
             }
             MainDlg.Log.WriteMessage("Disconnected from: " + Settings.Default.KST_Chat);
+            TelnetWrapper disconnectedTelnet = sender as TelnetWrapper;
             try
             {
-                tw.Dispose();
-                tw.Close();
-                MsgQueue.Clear();
-                MSG.Clear();
-                initialMessagesReceived = false;
-                MsgRows.Clear();
-                KSTBuffer = "";
-                Say("Disconnected from KST chat...");
+                CloseTelnet(disconnectedTelnet ?? tw);
+                ClearConnectionState();
+                if (e.Message.Length == 0)
+                {
+                    Say("Disconnected from KST chat...");
+                }
             }
             catch
             {
@@ -1026,7 +1109,18 @@ namespace wtKST
         {
             if (State == KST_STATE.Connected)
             {
-                tw.Send("\r\n"); // send to check if link is still up
+                try
+                {
+                    tw.Send("\r\n"); // send to check if link is still up
+                }
+                catch (Exception ex)
+                {
+                    if (!IsTransientConnectionException(ex))
+                    {
+                        Error(MethodBase.GetCurrentMethod().Name, ex.Message);
+                    }
+                    HandleTransientConnectionFailure(tw);
+                }
             }
         }
 
